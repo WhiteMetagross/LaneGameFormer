@@ -143,13 +143,13 @@ Code/
 ## 1. VisionAndStabilization Module:
 The `VisionAndStabilization` module handles raw aerial drone telemetry ingestion, homography stabilization, metric coordinate scaling, and multi-object tracking.
 
-| File | Subsystem | Mathematical & Algorithmic Summary | Key Exports & Dependencies |
+| File | Subsystem | Algorithmic Summary | Key Exports & Dependencies |
 | :--- | :--- | :--- | :--- |
 | **`botsort.py`** | Multi-Object Tracking | Implements the BoT-SORT tracker with Kalman filtering, Global Motion Compensation (GMC), and ReID cosine distance matching. | `BoTSORT`, `KalmanFilter` |
 | **`botsort.yaml`** | Tracking Configuration | Hyperparameters defining high/low detection thresholds, track buffers (30 frames), and proximity weights. | Configuration dictionary |
-| **`convert_videos_to_30fps.py`** | Video Preprocessing | Enforces uniform 30.0 FPS sampling via FFmpeg to guarantee strict temporal step intervals ($\Delta t = 33.3\text{ ms}$). | CLI script |
+| **`convert_videos_to_30fps.py`** | Video Preprocessing | Enforces uniform 30.0 FPS sampling via FFmpeg to guarantee strict temporal step intervals (dt = 33.3 ms). | CLI script |
 | **`extract_srt_metadata.py`** | Telemetry Parsing | Parses embedded SRT streams for drone altitude, latitude, longitude, and 3-axis gimbal angles. | Metadata CSV generator |
-| **`map_pixels_to_meters.py`** | Spatial Calibration | Computes Ground Sampling Distance (GSD $= 0.16\text{ m/px}$) and perspective homography matrices. | Homography transform tools |
+| **`map_pixels_to_meters.py`** | Spatial Calibration | Computes Ground Sampling Distance (GSD = 0.16 m/px) and perspective homography matrices. | Homography transform tools |
 | **`stabilize_coordinates.py`** | Coordinate Stabilization | Applies affine compensation matrices to raw pixel trajectories to remove drone drift. | Stabilized CSV generator |
 | **`stabilize_video_files.py`** | Image Stabilization | Computes inter-frame optical flow and warps raw video frames to produce stable top-down videos. | Stabilized MP4 generator |
 | **`telemetry_aligner.py`** | Temporal Synchronization | Interpolates telemetry timestamps with video frame indices to ensure sensor alignment. | Telemetry alignment pipeline |
@@ -191,7 +191,7 @@ The `DatasetPipeline` module handles trajectory cleaning, frequency conversion t
 .
 
 ### Detailed Functionality:
-- **`calculate_class_sizes.py`**: Validates physical dimensions ($\mu = 2.60\text{ m} \times 4.80\text{ m}$) across all annotated entity classes.
+- **`calculate_class_sizes.py`**: Validates physical dimensions (mean = 2.60 m x 4.80 m) across all annotated entity classes.
 - **`chunk_dataset.py`**: Partitions continuous video trajectory recordings into standardized 5.0-second chunk sequences.
 - **`chunk_interactions.py`**: Extracts interactive multi-agent scenarios where minimum inter-agent distance drops below critical thresholds.
 - **`cleanup_datasets.py`**: Enforces strict temporal continuity and spatial validity across all track records.
@@ -209,13 +209,13 @@ The `DatasetPipeline` module handles trajectory cleaning, frequency conversion t
 ## 3. PhysicsAndBehaviorEngine Module:
 The `PhysicsAndBehaviorEngine` module extracts emergent flow surfaces, constructs dynamic potential fields, evaluates polygon collisions, and computes game-theoretic payoffs.
 
-| File | Algorithmic Core | Mathematical Formulation | Role in Framework |
+| File | Algorithmic Core | Physical Formulation | Role in Framework |
 | :--- | :--- | :--- | :--- |
-| **`emerging_lane_extractor.py`** | Probabilistic Flow Surface | Hausdorff clustering ($d_H \le 3.05\text{ m}$) and Gaussian potential field fitting: $P(\mathbf{x}) = \sum C_{l_m} \exp(-\frac{\text{dist}^2}{2\sigma^2})$. | PTFS surface discovery |
-| **`game_theory_predictor.py`** | Strategic Game Theory | Cooperative and non-cooperative game formulation solving for equilibrium yielding payoffs $J(s_i, s_j)$. | Strategic interaction modeling |
+| **`emerging_lane_extractor.py`** | Probabilistic Flow Surface | Hausdorff clustering (d_H <= 3.05 m) and Gaussian potential field fitting: P(x) = sum( C_m * exp(-dist(x, l_m)^2 / (2*sigma^2)) ). | PTFS surface discovery |
+| **`game_theory_predictor.py`** | Strategic Game Theory | Cooperative and non-cooperative game formulation solving for equilibrium yielding payoffs J(s_i, s_j). | Strategic interaction modeling |
 | **`lane_manager.py`** | Spatial Map Graph | Spatial kd-tree indexing, Frenet coordinate conversion, and lane centerline polyline queries. | Vector map manager |
 | **`road_mask_manager.py`** | Drivable Area Constraints | Binary road mask processing and off-road boundary violation checking. | Spatial feasibility checker |
-| **`social_potential_field.py`** | Dynamic Potential Fields | Multi-band repulsive social potentials $U_j(\mathbf{x}, t)$ and 2D-OBB Separating Axis Theorem (SAT) collision detection. | Safety field engine |
+| **`social_potential_field.py`** | Dynamic Potential Fields | Multi-band repulsive social potentials U_j(x, t) and 2D-OBB Separating Axis Theorem (SAT) collision detection. | Safety field engine |
 | **`track_data_loader.py`** | High-Throughput IO | Fast trajectory parsing, coordinate transforms, and batched NumPy tensor synthesis. | Data loading backend |
 | **`trajectory_predictor.py`** | Deterministic Rollout | Kinematic and potential field gradient descent rollout engine for FlowSPF baseline variants A, B, C, and D. | Physics baseline engine |
 
@@ -240,7 +240,7 @@ The `ModelArchitectures` module implements the complete neural network architect
 | :--- | :--- | :--- | :--- |
 | **`lane_game_former.py`** | Top-Level Model | Integrates LaneGCN graph encoder with GameFormer interactive decoder and GMM prediction heads. | `LaneGameFormer` |
 | **`lanegcn_encoder.py`** | Graph Encoder | ActorNet temporal 1D CNN + MapNet graph CNN with multi-scale A2M, M2M, M2A, and A2A fusion. | `LaneGCNEncoder`, `ActorNet`, `MapNet` |
-| **`gameformer_decoder.py`** | Level-$k$ Decoder | Hierarchical interactive decoder with SPAB attention bias, LCMA mode anchoring, and BASP safety loss. | `GameFormerDecoder`, `InteractionDecoderLevel` |
+| **`gameformer_decoder.py`** | Level-k Decoder | Hierarchical interactive decoder with SPAB attention bias, LCMA mode anchoring, and BASP safety loss. | `GameFormerDecoder`, `InteractionDecoderLevel` |
 | **`layers.py`** | Neural Primitives | Fourier positional embeddings, multi-head cross-attention, MLP blocks, and layer normalization. | `FourierEmbedding`, `MultiHeadAttention` |
 
 .
@@ -258,7 +258,7 @@ The `ModelArchitectures` module implements the complete neural network architect
 ### 4.3 GameFormer / PrayagGameFormer (Baseline Architecture):
 | File | Component | Architecture & Mechanism | Key Classes |
 | :--- | :--- | :--- | :--- |
-| **`Model/gameformer.py`** | Baseline Decoder | Level-$k$ interactive decoder adapted for BEV drone trajectory prediction. | `GameFormer` |
+| **`Model/gameformer.py`** | Baseline Decoder | Level-k interactive decoder adapted for BEV drone trajectory prediction. | `GameFormer` |
 | **`Model/modules.py`** | Attention Blocks | Multi-agent self-attention, cross-attention, and iterative query refinement layers. | `CrossAttention`, `SelfAttention` |
 | **`Data/dataset.py`** | Dataset Loader | PyTorch Dataset class for loading chunked trajectory files with coordinate normalization. | `BEVDataset` |
 | **`Data/mapEncoder.py`** | Map Feature Encoder | Raster and vector processing for static road geometry. | `MapEncoder` |

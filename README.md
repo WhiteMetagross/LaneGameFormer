@@ -8,8 +8,8 @@
 
 ## Executive Overview:
 **LaneGameFormer (LGF)** is a unified multi-agent trajectory prediction framework engineered specifically for dense, heterogeneous, and unstructured urban traffic environments.
-Unlike conventional structured driving scenarios where vehicles adhere strictly to painted lane markers and strict traffic signals, unstructured urban intersections in emerging economies exhibit extreme vehicle density, diverse vehicle classes (e.g., two-wheelers, auto-rickshaws, buses, pedestrians), lack of physical lane markings, and continuous microscopic negotiation.
-LaneGameFormer addresses these challenges through a synergistic architecture combining dynamic **Probabilistic Traffic Flow Surfaces (PTFS)**, **Social Potential Fields (SPF)**, **Vector Time-to-Collision (VTTC)** interaction mining, and **hierarchical Level-$k$ game-theoretic reasoning**.
+Unlike conventional structured driving scenarios where vehicles adhere strictly to painted lane markers and standard traffic signals, unstructured urban intersections in emerging economies exhibit extreme vehicle density, diverse vehicle classes (e.g., two-wheelers, auto-rickshaws, buses, pedestrians), lack of physical lane markings, and continuous microscopic negotiation.
+LaneGameFormer addresses these challenges through a synergistic architecture combining dynamic **Probabilistic Traffic Flow Surfaces (PTFS)**, **Social Potential Fields (SPF)**, **Vector Time-to-Collision (VTTC)** interaction mining, and **hierarchical Level-k game-theoretic reasoning**.
 
 ---
 
@@ -17,19 +17,33 @@ LaneGameFormer addresses these challenges through a synergistic architecture com
 
 ### 1. Probabilistic Traffic Flow Surfaces (PTFS):
 - Automatically discovers emergent virtual lane topology directly from historical trajectory clusters without requiring static High-Definition (HD) maps.
-- Trajectories are smoothed via Savitzky-Golay filtering and clustered using Hausdorff distance metrics ($d_H \le 3.05\text{ m}$).
+- Trajectories are smoothed via Savitzky-Golay filtering and clustered using Hausdorff distance metrics (d_H <= 3.05 m).
 - Continuous flow potential is formulated as:
-  $$P(\mathbf{x}) = \sum_{m=1}^M C_{l_m} \exp\left(-\frac{\text{dist}(\mathbf{x}, l_m)^2}{2\sigma^2}\right), \quad C_{l_m} = \min\left(1.0, 0.3 + 0.7 \cdot \frac{N_{\text{support}}}{N_{\text{max}}}\right), \quad \sigma = 1.72\text{ m}$$
+```
+P(x) = Σ [ C_m · exp(-dist(x, l_m)² / (2 · σ²)) ]
 
-.
+where:
+- C_m = min(1.0, 0.3 + 0.7 · (N_support / N_max))
+- σ = 1.72 m (spatial smoothing bandwidth)
+- dist(x, l_m) is the Euclidean distance from position x to polyline l_m
+```.
 
 ### 2. Vector Time-to-Collision (VTTC) & Swarm Complexity Index (SCI):
-- Solves the exact cubic polynomial for the time of Closest Point of Approach (CPA) $\tau$ under relative acceleration $\mathbf{r}(t) = \Delta \mathbf{p} + \Delta \mathbf{v} t + \frac{1}{2} \Delta \mathbf{a} t^2$:
-  $$\|\Delta \mathbf{a}\|^2 \tau^3 + 3 (\Delta \mathbf{v} \cdot \Delta \mathbf{a}) \tau^2 + 2 (\|\Delta \mathbf{v}\|^2 + \Delta \mathbf{p} \cdot \Delta \mathbf{a}) \tau + 2 (\Delta \mathbf{p} \cdot \Delta \mathbf{v}) = 0$$
-- Evaluates the dynamic Swarm Complexity Index (SCI) weighted by entity vulnerability classes ($w_{\text{HPE}}=2.5$, $w_{\text{SVE}}=1.8$, $w_{\text{LVE}}=1.0$):
-  $$sci_i(t) = \sum_{j \in \mathcal{N}_i, \Delta \mathbf{p} \cdot \Delta \mathbf{v} < 0} \frac{w_j}{ob\_vtc_{ij}(t)}$$
+- Solves the exact cubic polynomial for the time of Closest Point of Approach (CPA) τ under relative acceleration r(t) = Δp + Δv·t + 0.5·Δa·t²:
+```
+||Δa||² · τ³ + 3(Δv · Δa) · τ² + 2(||Δv||² + Δp · Δa) · τ + 2(Δp · Δv) = 0
 
-.
+where:
+- Δp = p_j - p_i (relative position vector)
+- Δv = v_j - v_i (relative velocity vector)
+- Δa = a_j - a_i (relative acceleration vector)
+- τ is the real positive root giving the minimum Euclidean approach distance
+- Vector TTC: VTTC = τ if τ > 0 and CPA_dist < d_threshold, else ∞
+```.
+- Evaluates the dynamic Swarm Complexity Index (SCI) weighted by entity vulnerability classes (w_HPE = 2.5, w_SVE = 1.8, w_LVE = 1.0):
+```
+SCI_i(t) = Σ [ w_j / OB_VTC_ij(t) ]  for all j in N_i where Δp · Δv < 0
+```.
 
 ### 3. Social Potential Attention Bias (SPAB):
 - Injects continuous velocity-dependent repulsive safety fields into multi-head self-attention mechanisms.
@@ -44,10 +58,12 @@ LaneGameFormer addresses these challenges through a synergistic architecture com
 - Employs a learnable gating mechanism to dynamically balance immediate tactical maneuvers against long-term navigational intent.
 
 ### 6. Dynamic Behavior-Aware Social Potential (BASP) Loss:
-- Imposes an adaptive safety clearance margin $d_{\text{margin}}$ conditioned on real-time VTTC and swarm complexity:
-  $$d_{\text{margin}} = d_0 \left[1.0 + \max(0, 1.5 - vttc_{ij}) \cdot 0.4 - \min(sci_{ij}, 5.0) \cdot 0.05 \cdot \frac{\min(vttc_{ij}, 3.0)}{3.0}\right], \quad d_{\text{margin}} \in [0.8, 3.5]\text{ m}$$
+- Imposes an adaptive safety clearance margin d_margin conditioned on real-time VTTC and swarm complexity:
+```
+d_margin = d_0 · [ 1.0 + max(0, 1.5 - VTTC_ij) · 0.4 - min(SCI_ij, 5.0) · 0.05 · (min(VTTC_ij, 3.0) / 3.0) ]
 
-.
+clamped to the physical safety range [0.8 m, 3.5 m].
+```.
 
 ---
 
@@ -181,7 +197,7 @@ python ExperimentsAndBenchmarks/FairBenchmarkSuite/run_fair_experiments.py \
 - **Evaluation Protocol**: 479 common agent-sequence intersection evaluated across identical observation-prediction windows.
 - **Observation Horizon**: 20 frames (2.0 seconds at 10 Hz).
 - **Prediction Horizon**: 30 frames (3.0 seconds at 10 Hz).
-- **Number of Multimodal Modes ($K$)**: 6 modes.
+- **Number of Multimodal Modes (K)**: 6 modes.
 
 | Model Architecture | minADE@6 (m) | minFDE@6 (m) | Miss Rate (MR@6) | Collision Rate | Inference Latency (ms) |
 | :--- | :---: | :---: | :---: | :---: | :---: |
@@ -198,7 +214,7 @@ python ExperimentsAndBenchmarks/FairBenchmarkSuite/run_fair_experiments.py \
 ---
 
 ### Deterministic FlowSPF Baseline Comparison (Table 11):
-- **Variant A**: Kinematic Only ($\mathbf{v} \odot \nabla P$).
+- **Variant A**: Kinematic Only (v · grad P).
 - **Variant B**: Conventional 1D-TTC Radius Scaling.
 - **Variant C**: CPA VTTC Longitudinal Yield Scaling.
 - **Variant D**: Space-Time SCI Radius and OB-VTC Strip Width Scaling.
@@ -220,7 +236,7 @@ python ExperimentsAndBenchmarks/FairBenchmarkSuite/run_fair_experiments.py \
 - **A2**: TTC-only potential field (no acceleration-aware CPA solver).
 - **A3**: CPA-only potential field (no Swarm Complexity Index scaling).
 - **A4**: Static Social Potential Field (no dynamic velocity-dependent radii).
-- **S1**: No Safety / BASP loss ($\lambda_{\text{safety}} = 0$).
+- **S1**: No Safety / BASP loss (lambda_safety = 0).
 - **K0**: Level-0 reasoning only (independent decoding without interactive levels).
 
 | Ablation Code | Model Variant | minADE@6 (m) | minFDE@6 (m) | MR@6 | Relative Performance Impact |
@@ -230,7 +246,7 @@ python ExperimentsAndBenchmarks/FairBenchmarkSuite/run_fair_experiments.py \
 | **A2** | TTC-only Potential (No CPA Acceleration) | 1.94 | 2.79 | 0.45 | +0.012% |
 | **A3** | CPA-only (No Swarm Complexity Index) | 1.91 | 2.74 | 0.44 | +0.012% |
 | **A4** | No Dynamic Behavior (Static SPF) | 2.05 | 2.98 | 0.48 | -0.004% |
-| **S1** | No Safety / BASP Loss ($\lambda_{\text{safety}} = 0$) | 2.18 | 3.15 | 0.52 | -0.115% |
+| **S1** | No Safety / BASP Loss (lambda_safety = 0) | 2.18 | 3.15 | 0.52 | -0.115% |
 | **K0** | Level-0 Only (No Interactive Reasoning) | 4.82 | 9.45 | 0.88 | **-929.5% (Catastrophic)** |
 
 .
