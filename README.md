@@ -19,18 +19,20 @@ LaneGameFormer addresses these challenges through a synergistic architecture com
 - Automatically discovers emergent virtual lane topology directly from historical trajectory clusters without requiring static High-Definition (HD) maps.
 - Trajectories are smoothed via Savitzky-Golay filtering and clustered using Hausdorff distance metrics (d_H <= 3.05 m).
 - Continuous flow potential is formulated as:
-```
+
+```math
 P(x) = Σ [ C_m · exp(-dist(x, l_m)² / (2 · σ²)) ]
 
 where:
 - C_m = min(1.0, 0.3 + 0.7 · (N_support / N_max))
 - σ = 1.72 m (spatial smoothing bandwidth)
 - dist(x, l_m) is the Euclidean distance from position x to polyline l_m
-```.
+```
 
 ### 2. Vector Time-to-Collision (VTTC) & Swarm Complexity Index (SCI):
 - Solves the exact cubic polynomial for the time of Closest Point of Approach (CPA) τ under relative acceleration r(t) = Δp + Δv·t + 0.5·Δa·t²:
-```
+
+```math
 ||Δa||² · τ³ + 3(Δv · Δa) · τ² + 2(||Δv||² + Δp · Δa) · τ + 2(Δp · Δv) = 0
 
 where:
@@ -39,11 +41,13 @@ where:
 - Δa = a_j - a_i (relative acceleration vector)
 - τ is the real positive root giving the minimum Euclidean approach distance
 - Vector TTC: VTTC = τ if τ > 0 and CPA_dist < d_threshold, else ∞
-```.
-- Evaluates the dynamic Swarm Complexity Index (SCI) weighted by entity vulnerability classes (w_HPE = 2.5, w_SVE = 1.8, w_LVE = 1.0):
 ```
+
+- Evaluates the dynamic Swarm Complexity Index (SCI) weighted by entity vulnerability classes (w_HPE = 2.5, w_SVE = 1.8, w_LVE = 1.0):
+
+```math
 SCI_i(t) = Σ [ w_j / OB_VTC_ij(t) ]  for all j in N_i where Δp · Δv < 0
-```.
+```
 
 ### 3. Social Potential Attention Bias (SPAB):
 - Injects continuous velocity-dependent repulsive safety fields into multi-head self-attention mechanisms.
@@ -59,11 +63,12 @@ SCI_i(t) = Σ [ w_j / OB_VTC_ij(t) ]  for all j in N_i where Δp · Δv < 0
 
 ### 6. Dynamic Behavior-Aware Social Potential (BASP) Loss:
 - Imposes an adaptive safety clearance margin d_margin conditioned on real-time VTTC and swarm complexity:
-```
+
+```math
 d_margin = d_0 · [ 1.0 + max(0, 1.5 - VTTC_ij) · 0.4 - min(SCI_ij, 5.0) · 0.05 · (min(VTTC_ij, 3.0) / 3.0) ]
 
 clamped to the physical safety range [0.8 m, 3.5 m].
-```.
+```
 
 ---
 
@@ -88,7 +93,7 @@ clamped to the physical safety range [0.8 m, 3.5 m].
                                              ├── 6 Multimodal Trajectories (K=6)
                                              ├── Gaussian Uncertainty Matrices
                                              └── Mode Selection Probabilities
-```.
+```
 
 ---
 
@@ -103,8 +108,6 @@ clamped to the physical safety range [0.8 m, 3.5 m].
 | **`PaperFiguresAndVisualization/`** | Visualization & LaTeX | High-resolution publication figure generators, qualitative BEV renderers, complete CoRL LaTeX source. |
 | **`CodeBaseIndex.md`** | Codebase Catalog | Comprehensive file-by-file technical reference describing all 99 files in the repository. |
 
-.
-
 ---
 
 ## Installation & Environment Setup:
@@ -117,10 +120,11 @@ Follow these steps to set up the software environment and dependencies.
 
 ### 2. Dependency Installation:
 Execute the following pip installation commands to set up the required packages:
+
 ```bash
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 pip install numpy scipy pandas matplotlib seaborn opencv-python tqdm pyyaml shapely scikit-learn optuna
-```.
+```
 
 ---
 
@@ -144,7 +148,7 @@ Data/
 └── ProjectPrayagTopDownDataset/
     ├── CIRAerialDroneIndianIntersectionsVideos/
     └── IntermediateFiles/
-```.
+```
 
 ### Dataset Preprocessing Pipeline:
 1. Normalize drone videos to 30 FPS using `python VisionAndStabilization/convert_videos_to_30fps.py`.
@@ -158,6 +162,7 @@ Data/
 
 ### 1. Training LaneGameFormer:
 To train LaneGameFormer from scratch on the 10 Hz chunked dataset, run:
+
 ```bash
 python ExperimentsAndBenchmarks/Training/train.py \
     --data_dir ../Data/ChunkedProjectPrayagBEVDataset10Hz \
@@ -165,29 +170,32 @@ python ExperimentsAndBenchmarks/Training/train.py \
     --batch_size 32 \
     --lr 1e-4 \
     --device cuda
-```.
+```
 
 ### 2. Running the Standardized Fair Benchmark:
 To evaluate all models on the shared 479 agent-sequence intersection benchmark (reproducing Table 4), run:
+
 ```bash
 python ExperimentsAndBenchmarks/FairBenchmarkSuite/eval_standardized.py \
     --data_dir ../Data/ChunkedProjectPrayagBEVDataset10Hz
-```.
+```
 
 ### 3. Running Deterministic FlowSPF Baselines:
 To evaluate the physics-based FlowSPF variants A, B, C, and D (reproducing Table 11), run:
+
 ```bash
 python ExperimentsAndBenchmarks/BaselineEvaluators/run_ptfs_spf_gt_eval.py \
     --data_dir ../Data/ChunkedProjectPrayagBEVDataset10Hz
-```.
+```
 
 ### 4. Running Component Ablations:
 To evaluate architectural component ablations (reproducing Table 12), run:
+
 ```bash
 python ExperimentsAndBenchmarks/FairBenchmarkSuite/run_fair_experiments.py \
     --data_dir ../Data/ChunkedProjectPrayagBEVDataset10Hz \
     --eval_ablations
-```.
+```
 
 ---
 
@@ -209,8 +217,6 @@ python ExperimentsAndBenchmarks/FairBenchmarkSuite/run_fair_experiments.py \
 | Social-STGCNN | 3.45 | 5.12 | 0.71 | 0.42% | 8.6 |
 | Constant Velocity (CV Prior) | 4.82 | 9.45 | 0.88 | 1.88% | 0.1 |
 
-.
-
 ---
 
 ### Deterministic FlowSPF Baseline Comparison (Table 11):
@@ -225,8 +231,6 @@ python ExperimentsAndBenchmarks/FairBenchmarkSuite/run_fair_experiments.py \
 | **Variant B (Conventional TTC)** | 4.20 | 8.27 | 2.28% | 16.34% |
 | **Variant C (CPA VTTC Yield)** | **3.92** | **7.67** | 2.31% | **15.91%** |
 | **Variant D (Space-Time SCI)** | 4.22 | 8.31 | **2.17%** | 16.85% |
-
-.
 
 ---
 
@@ -249,8 +253,6 @@ python ExperimentsAndBenchmarks/FairBenchmarkSuite/run_fair_experiments.py \
 | **S1** | No Safety / BASP Loss (lambda_safety = 0) | 2.18 | 3.15 | 0.52 | -0.115% |
 | **K0** | Level-0 Only (No Interactive Reasoning) | 4.82 | 9.45 | 0.88 | **-929.5% (Catastrophic)** |
 
-.
-
 ---
 
 ## Publication Figures & Visualizations:
@@ -264,7 +266,3 @@ All publication figures can be reproduced directly using the rendering scripts l
 | **`generate_interaction_figures.py`** | Pairwise microscopic vehicle interaction case studies. | `PaperFiguresAndVisualization/LGF_CORLPaper/Img/fig6_interaction_case_study.png` |
 | **`generate_new_paper_figures.py`** | Speed-density adaptation curves and VTTC hexbin coupling plots. | `PaperFiguresAndVisualization/LGF_CORLPaper/Img/fig8_vttc_speed_coupling.png` |
 | **`generate_visualizations_10hz.py`** | Qualitative multimodal trajectory rollouts in BEV space. | `PaperFiguresAndVisualization/LGF_CORLPaper/Img/fig11_predictions_output.jpg` |
-
-.
-
-

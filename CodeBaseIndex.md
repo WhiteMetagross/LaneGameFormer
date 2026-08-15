@@ -17,7 +17,6 @@ The codebase is modularized into 6 major subpackages spanning video stabilizatio
 | **`ExperimentsAndBenchmarks/`** | Benchmarking & Evaluation | Standardized fair benchmark (479 agents), baseline evaluators, training pipelines, cross-domain tests. | 17 |
 | **`PaperFiguresAndVisualization/`** | Visualization & LaTeX | High-resolution publication figure generators, qualitative BEV renderers, complete CoRL LaTeX source. | 23 |
 
-.
 
 ---
 
@@ -136,7 +135,7 @@ Code/
             ├── fig10_flow_potential_surface.jpg
             ├── fig11_predictions_output.jpg
             └── flow_spf_comparison.png
-```.
+```
 
 ---
 
@@ -155,7 +154,6 @@ The `VisionAndStabilization` module handles raw aerial drone telemetry ingestion
 | **`telemetry_aligner.py`** | Temporal Synchronization | Interpolates telemetry timestamps with video frame indices to ensure sensor alignment. | Telemetry alignment pipeline |
 | **`tracker.py`** | Detection & Tracking Runner | End-to-end wrapper combining YOLO object detection with BoT-SORT state estimation. | Trajectory tracking pipeline |
 
-.
 
 ### Detailed Functionality:
 - **`botsort.py`**: Solves tracking across severe occlusion and dense clustering by fusing appearance features with motion priors.
@@ -188,7 +186,6 @@ The `DatasetPipeline` module handles trajectory cleaning, frequency conversion t
 | **`smooth_obb_trajectories.py`** | Trajectory Smoothing | Applies Savitzky-Golay filtering and spline interpolation to smooth Oriented Bounding Box centerlines and headings. | Smoothed trajectory tracks |
 | **`update_dataset_classes.py`** | Taxonomy Mapping | Harmonizes annotation labels into Small Vehicle Entities (SVE), Large Vehicle Entities (LVE), and Pedestrians (HPE). | Standardized annotations |
 
-.
 
 ### Detailed Functionality:
 - **`calculate_class_sizes.py`**: Validates physical dimensions (mean = 2.60 m x 4.80 m) across all annotated entity classes.
@@ -219,7 +216,6 @@ The `PhysicsAndBehaviorEngine` module extracts emergent flow surfaces, construct
 | **`track_data_loader.py`** | High-Throughput IO | Fast trajectory parsing, coordinate transforms, and batched NumPy tensor synthesis. | Data loading backend |
 | **`trajectory_predictor.py`** | Deterministic Rollout | Kinematic and potential field gradient descent rollout engine for FlowSPF baseline variants A, B, C, and D. | Physics baseline engine |
 
-.
 
 ### Detailed Functionality:
 - **`emerging_lane_extractor.py`**: Automatically constructs virtual lane graphs in unlaned traffic environments without static HD maps.
@@ -243,7 +239,6 @@ The `ModelArchitectures` module implements the complete neural network architect
 | **`gameformer_decoder.py`** | Level-k Decoder | Hierarchical interactive decoder with SPAB attention bias, LCMA mode anchoring, and BASP safety loss. | `GameFormerDecoder`, `InteractionDecoderLevel` |
 | **`layers.py`** | Neural Primitives | Fourier positional embeddings, multi-head cross-attention, MLP blocks, and layer normalization. | `FourierEmbedding`, `MultiHeadAttention` |
 
-.
 
 ### 4.2 LaneGCN (Baseline Architecture):
 | File | Component | Architecture & Mechanism | Key Classes |
@@ -253,7 +248,6 @@ The `ModelArchitectures` module implements the complete neural network architect
 | **`dataset_generator.py`** | Tensor Collation | Converts trajectory CSVs into LaneGCN graph tensor dictionaries with disk caching. | `DatasetGenerator` |
 | **`layers.py`** | Graph Convolutions | Specialized multi-scale spatial graph convolutions and dilated 1D temporal convolution operators. | `GraphConv`, `DilatedConv1D` |
 
-.
 
 ### 4.3 GameFormer / PrayagGameFormer (Baseline Architecture):
 | File | Component | Architecture & Mechanism | Key Classes |
@@ -270,7 +264,6 @@ The `ModelArchitectures` module implements the complete neural network architect
 | **`tune.py`** | HPO Pipeline | Automated hyperparameter optimization using the Optuna framework. | HPO study runner |
 | **`evaluate.py`** | Evaluation Runner | Standalone evaluation script testing trained GameFormer checkpoints. | CLI evaluation script |
 
-.
 
 ---
 
@@ -286,7 +279,6 @@ The `ExperimentsAndBenchmarks` module contains standardized fair evaluation harn
 | **`evaluate_all_models.py`** | Multi-Model Benchmark | Aggregates comparative benchmark metrics across all trained neural and kinematic models. | Unified comparison tables |
 | **`run_ptfs_spf_gt_eval.py`** | FlowSPF Physics Evaluation | Evaluates deterministic FlowSPF baseline variants A, B, C, and D (reproducing Table 11). | FlowSPF benchmark table |
 
-.
 
 ### 5.2 FairBenchmarkSuite:
 | File | Evaluation Suite | Description & Protocol | Target Benchmark |
@@ -297,7 +289,6 @@ The `ExperimentsAndBenchmarks` module contains standardized fair evaluation harn
 | **`evaluation_metrics.py`** | Metric Library | Mathematical definitions of minADE@K, minFDE@K, MR@K, Brier-FDE, CR, and Off-Road Rate. | Core metric engine |
 | **`run_fair_experiments.py`** | Master Experiment Runner | Automates Optuna HPO, 3-seed model training, and architectural ablation studies. | Reproduces Table 12 |
 
-.
 
 ### 5.3 Training:
 | File | Pipeline | Core Capabilities | Key Interfaces |
@@ -306,7 +297,6 @@ The `ExperimentsAndBenchmarks` module contains standardized fair evaluation harn
 | **`inference.py`** | Trajectory Rollout | Generates multimodal trajectory predictions and mode probabilities from trained weights. | Inference API |
 | **`shared_training_utils.py`** | Training Utilities | Composite loss functions, gradient scalers, and master seed initialization routines. | Utility library |
 
-.
 
 ### 5.4 ZeroShotCrossDomain:
 | File | Generalization Test | Protocol & Scope | Target Analysis |
@@ -315,7 +305,6 @@ The `ExperimentsAndBenchmarks` module contains standardized fair evaluation harn
 | **`test_models.py`** | Single-Scene Transfer | Tests pretrained models on individual unseen intersection scenes. | Transfer error metrics |
 | **`test_models_on_largedatasets.py`** | Large-Scale Validation | Evaluates models across multi-flight aerial datasets to test real-world deployment robustness. | Large-scale summary |
 
-.
 
 ---
 
@@ -338,7 +327,6 @@ The `PaperFiguresAndVisualization` module contains figure generators, visualizat
 | **`LGF_CORLPaper/corlabbrvnat.bst`** | BibTeX Style | Bibliography formatting style implementing abbreviated author-year references. | BST style file |
 | **`LGF_CORLPaper/Img/`** | Publication Figures | Contains all 15 publication figures and high-resolution visual diagrams referenced in the paper. | PNG / JPG |
 
-.
 
 ---
 
