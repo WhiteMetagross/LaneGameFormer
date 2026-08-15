@@ -267,15 +267,4 @@ All publication figures can be reproduced directly using the rendering scripts l
 
 .
 
----
 
-## Citation:
-If you find this codebase or research useful in your work, please cite the research paper as follows:
-```bibtex
-@inproceedings{mandal2026lanegameformer,
-  title={LaneGameFormer: Multi-Agent Motion Forecasting in Dense Unstructured Urban Traffic via Flow-Surface Game Theory},
-  author={Mandal, Mridankan and Collaborators},
-  booktitle={Proceedings of the Conference on Robot Learning (CoRL)},
-  year={2026}
-}
-```.
