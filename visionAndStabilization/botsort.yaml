@@ -1,0 +1,32 @@
+# BoTSORT tracker configuration for VeriWild ReID integration
+tracker_type: botsort
+
+# Detection and tracking thresholds
+track_high_thresh: 0.23
+track_low_thresh: 0.09  
+new_track_thresh: 0.27
+track_buffer: 100
+match_thresh: 0.75
+fuse_score: true
+
+# Re-identification settings
+with_reid: true
+# ReID model path - use forward slashes or double backslashes
+model: auto
+reid_model: "C:/Users/Xeron/OneDrive/Documents/Programs/PrayagProject/veriwild_bot_R50-ibn.pth"
+
+# Camera motion compensation method
+gmc_method: sparseOptFlow
+
+# Appearance matching thresholds
+proximity_thresh: 0.5
+appearance_thresh: 0.25
+
+# Additional settings
+mot20: false
+aspect_ratio_thresh: 3.0
+min_box_area: 100
+
+# Device settings  
+device: ""  # Leave empty for auto-detection
+half: false

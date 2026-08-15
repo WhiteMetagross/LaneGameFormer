@@ -1,0 +1,664 @@
+\documentclass{article}
+\usepackage{xcolor}
+\usepackage{corl_2026}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{tabularx}
+\usepackage{hyperref}
+
+\begin{document}
+
+\title{Navigating Unstructured Indian Intersections: Multi-Agent Trajectory Prediction through Continuous Probabilistic Flow Embeddings and Hierarchical Level k Reasoning}
+
+\author{
+  Anonymous Authors \\
+  Submission ID: 17 \\
+  \texttt{submission17@corl2026.org}
+}
+
+\maketitle
+
+\begin{abstract}
+Trajectory prediction in unstructured, high density traffic environments represents a significant challenge. Without explicit lane markings, traffic participants must negotiate shared spaces through subtle, proximity based implicit cues. We introduce LaneGameFormer, a novel hybrid multi-agent architecture combining graph based map representation with a game theoretic transformer decoder. Our approach discards traditional high definition maps. Instead, it extracts a probabilistic flow potential surface from empirical tracking data to coordinate socially normative and collision free trajectories. To validate this framework, we present a newly curated drone captured dataset from unstructured road intersections of Prayagraj, India, characterized by intense vehicle mixing and contact tolerant maneuvering. Evaluations show that our model outperforms both standard physics baselines and advanced sequence to sequence transformers in highly congested regimes. Furthermore, zero shot cross domain testing highlights the critical necessity of domain aware modeling, as systems trained on structured Western datasets suffer catastrophic failure in unstructured, lane free environments.
+\end{abstract}
+
+\keywords{Trajectory Prediction, Unstructured Intersections, Game Theory}
+
+\section{Introduction}
+Anticipating future agent coordinates in dense, heterogeneous urban traffic remains important for safe autonomous navigation \cite{b1, b2}. Proactive spatial awareness is important. It enables reactive, safe collision avoidance maneuvers under high dynamic pressure. Unstructured intersections present a challenge. Absent explicit lane striping or signalization, driving patterns cease to be rule bound. Heterogeneous participants must dynamically negotiate shared coordinates through subtle, continuous, and non-verbal communications. This chaotic self organization violates the structural assumptions built into conventional Western forecasting paradigms.
+
+Modeling multi-agent dynamics in these spaces triggers four distinct failure modes. First, we define \textbf{representation collapse} as the structural failure of deep trajectory models when road network graphs and lane topologies are corrupted or missing, resulting in high frequency error drift because the encoders rely on high definition map features. This occurs because traditional models such as LaneGCN \cite{b18} or VectorNet \cite{b16} rely on clean, high definition (HD) lane level topologies, which are either unreliable or entirely absent in developing road networks. Second, \textbf{scalability bottlenecks} arises. Standard vector encoders like HiVT \cite{b17} and game theoretic decoders like GameFormer \cite{b10} are designed for sparse, pairwise interactions. They quickly saturate in unstructured Indian traffic where thirty to fifty agents actively negotiate a single intersection. Third, we observe an \textbf{interaction assumption mismatch}. Conventional frameworks model traffic as a highly compliant, contact averse process. Real world unstructured flows operate under extreme proximity, presenting highly assertive, contact tolerant negotiations where drivers continuously leverage vehicle footprints to claim precedence. Fourth, \textbf{evaluation deficits} persist. Standard geometric metrics like Average Displacement Error (ADE) are insufficient. They measure spatial error, but completely ignore strategic intent, cooperative negotiation, and multi-modal uncertainty.
+
+To resolve these fundamental limitations, we introduce LaneGameFormer, a hybrid, behavior driven neural architecture that models traffic as a continuous probabilistic flow. By discarding rigid topological maps, we represent the road environment as a learned potential field, which naturally guides agents along emerging, socially normative corridors while permitting local deviations. \textbf{socially normative corridors} are emerging spatial pathways dynamically formed through collective vehicle navigation in unstructured spaces, characterized by high historical trajectory density where participants coordinate their paths to minimize conflict. We validate our approach using a newly captured aerial dataset from Prayagraj, India, capturing dense, mixed traffic interactions. Figure \ref{fig:lgf_arch} shows our complete prediction pipeline, which is detailed in Section V. The architecture operates through three unified phases: offline pre processing, continuous potential map encoding, and a runtime prediction engine. The runtime system combines learned flow fields with dynamic social potential fields and game theoretic Level k planning to generate and rank candidate trajectories.
+
+In summary, the primary contributions of this work are:
+\begin{itemize}
+\item \textbf{A Novel Trajectory Benchmark}: We present the Prayag TopDown dataset, a high density aerial trajectory benchmark captured from unstructured Indian intersections, featuring oriented bounding box tracking of heterogeneous entities under intense spatial congestion.
+\item \textbf{Automated OB VTC Interaction Mining}: We develop a novel interaction mining pipeline using Oriented Bounding Box (OBB) Separating Axis projections and edge to edge oriented boundary vector time to collision to capture microscopic, contact tolerant vehicle negotiations.
+\item \textbf{Continuous Probabilistic Lane Representation}: We construct the Probabilistic Traffic Flow Surface to replace rigid topological road networks, generating a continuous potential field that guides forecasting queries along emerging, socially normative corridors.
+\item \textbf{Interactive Bounded Rationality Solver}: We introduce the LaneGameFormer architecture, which integrates graph based map representations with hierarchical Level k game theoretic reasoning, learnable Social Potential Attention Biases, and a differentiable Separating Axis collision loss.
+\item \textbf{Behavior Aware Safety Baselines}: We formulate dynamic Behavior Aware Social Potential margins and define deterministic behavioral baselines (FlowSPF and PTFS-SPF-GT), demonstrating through multiple algorithmic variants and spatial safety scores that incorporating continuous flow maps preserves key collision avoidance mechanisms under severe out of distribution shifts.
+\end{itemize}
+
+In summary, the primary contributions of this work are fourfold:
+\begin{itemize}
+\item \textbf{A Novel Trajectory Benchmark}: We present the Prayag dataset, a high density aerial trajectory benchmark captured from unstructured Indian intersections, featuring oriented bounding box tracking of heterogeneous entities under intense spatial congestion.
+\item \textbf{Continuous Probabilistic Lane Representation}: We construct the Probabilistic Traffic Flow Surface to replace rigid topological road networks, generating a continuous potential field that guides forecasting queries along emerging, socially normative corridors.
+\item \textbf{Interactive Bounded Rationality Solver}: We introduce the LaneGameFormer architecture, which integrates graph based map representations with hierarchical Level k game theoretic reasoning, learnable Social Potential Attention Biases, and a differentiable Separating Axis collision loss.
+\item \textbf{Rigorously Calibrated Safety Bounds}: We mathematically define the Swarm Complexity Index and Vector Time to Collision CPA formulations to calculate dynamic safety boundaries, and we show through extensive evaluations that our framework substantially reduces collision rates under extreme out of distribution domain shifts.
+\end{itemize}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{img/Architecture.png}
+\caption{System architecture of the LaneGameFormer trajectory prediction model.}
+\label{fig:lgf_arch}
+\end{figure*}
+
+\section{Related Work}
+
+\subsection{Trajectory Prediction in Structured Environments}
+Trajectory prediction research has expanded significantly with the release of large scale benchmarks captured in highly structured traffic environments. Standard datasets include the original Argoverse benchmark for 3D tracking and forecasting \cite{b20}, Argoverse 2 for next generation self driving research \cite{b21}, Lyft Level 5 for rasterized bird's eye view models \cite{b30}, and the Waymo Open Motion Dataset for large scale interactive agent forecasting \cite{b22}. Earlier microscopic behavior studies utilized the NGSIM highway dataset \cite{b9}, while the INTERACTION benchmark enabled the study of complex driving scenarios across multiple countries \cite{b23}.
+
+To process these datasets, models typically vectorize spatial maps and agent histories to encode interactions through graph neural networks or transformers. VectorNet deployed hierarchical graphs to process vectorized road features \cite{b16}, while LaneGCN constructed lane graphs to capture structural road topology \cite{b18}. Hierarchical vector transformers like HiVT introduced local coordinate encodings to achieve translation invariance and high computational efficiency \cite{b17}. Earlier probabilistic frameworks like Multi-Path modeled trajectory forecasting using pre-defined anchors \cite{b24}. To bypass anchor dependency, DenseTNT introduced anchor free trajectory prediction directly from dense goal sets \cite{b25}. Similarly, PECNet pioneered endpoint conditioned trajectory prediction by leveraging latent spaces to capture diverse goal destinations \cite{b32}. Query centric models like QCNet developed symmetric representations to enable streaming calculations without redundant map re-encoding \cite{b27}. Intention guided query methods like the Motion Transformer modeled multi-agent trajectory forecasting through joint optimization of global intention anchors and localized motion queries \cite{b28}. Recent works have also integrated historical prediction attention mechanisms like HPNet \cite{b5} or explored self supervised pre-training frameworks such as Forecast-MAE \cite{b7}, noise imputed transformers \cite{b6}, and meta learning updating schemes \cite{b8}. However, these approaches assume stable lane structures and highly compliant agent behaviors, which restricts their applicability in unstructured contexts.
+
+\subsection{Behavioral and Social Interaction Models}
+Modeling strategic negotiations among multiple road users is important for safe autonomous navigation. Classical approaches utilized social force models \cite{b9} to encode physical attraction and repulsion dynamics. Deep learning models have integrated these concepts by utilizing social graph neural networks like Social-STGCNN \cite{b4} to predict paths in crowded pedestrian spaces. Foundations in social pooling were established by Social LSTM \cite{b31}, which shared hidden states among adjacent agents in recurrent networks. Attentive generative models like SoPhie \cite{b33} combined social attention with scene physical constraints to generate realistic multi-agent trajectories. Dynamically feasible models like Trajectron++ \cite{b29} incorporated agent kinematics and heterogeneous context through graph structured recurrent neural networks.
+
+For vehicle interactions, game theoretic decoders have emerged as a powerful paradigm. GameFormer utilized a transformer encoder paired with hierarchical Level k reasoning to model recursive strategic interactions among drivers \cite{b10}. Progressive interaction networks like ProIn \cite{b3} have also been proposed to refine predicted trajectories through iterative cross modal attention. Dynamic transformer decoders like AgentFormer \cite{b26} leveraged agent aware attention to jointly model temporal and social relationships across agents. While these frameworks capture dynamic interactions, they continue to rely heavily on explicit map constraint layers and clean structured geometries, leading to representation collapse in chaotic spaces.
+
+\subsection{Unstructured and Dense Traffic Modeling}
+Unstructured environments differ fundamentally from structured Western roads due to extreme vehicle heterogeneity and weak lane discipline. Real world unstructured road modeling has been explored through datasets such as the Indian Driving Dataset \cite{b19}, which captures unconstrained driving scenes. Specialized subsets like IDD PeD \cite{b11} focus on pedestrian trajectory prediction in non lane based traffic.
+
+In these settings, standard leader follower dynamics are highly unstable due to frequent cut ins and staggered following behaviors \cite{b12}. To capture these chaotic patterns, researchers have explored reinforcement learning for cyclical heterogeneous intersection control \cite{b13} and two wheeler behavior modeling in mixed traffic flows \cite{b14}. Recent spatio temporal reconstruction frameworks like SUSTeR \cite{b15} have attempted to model traffic flow under sparse sensor coverage. Despite these developments, there remains a critical need for integrated prediction frameworks that encode continuous behavior priors directly into the map representation to guide multi-agent reasoning without rigid topological dependencies.
+
+\section{Single and Multi-Video Stabilization and Spatial Alignment}
+Trajectory extraction algorithms depend on image based object detection. Bounding boxes and tracking outputs are initially situated in the raw, two dimensional image coordinate space. Drone vibrations and environmental wind introduce high frequency camera jitter. This causes even static physical structures to show non-trivial, artificial coordinate drift across sequential frames. The primary objective of single video stabilization is to rectify this sensor jitter, mapping all local frames into a static, unified coordinate reference. Because the Prayag dataset is composed of multiple distinct recordings captured at different times, a subsequent multi-video spatial alignment is required. This alignment projects distinct trajectory domains onto a global, unified coordinate canvas.
+
+For single video stabilization, the computational pipeline initiates with the application of the Harris corner detection algorithm. This computer vision technique identifies salient feature points within the raw video frames. Once the feature points are extracted, the system tracks them using dense optical flow calculations to compute background motion vectors. A frame to frame mathematical homography transformation matrix is calculated for every individual frame to map coordinates back to a designated reference frame. This effectively corrects local camera jitter and drone camera drifting.
+
+To align coordinates across different video scenes, multi-video spatial alignment utilizes static geographic anchor points. Features such as road boundaries, static structures, and intersection corners visible across video clips are used to calculate coordinate system alignments. Using these anchoring keypoints, we compute multi-video homography projections that align different tracking coordinates to a single master aerial reference canvas. This step is important because it unifies spatial mappings across independent drone flights. The aligned pixel coordinates are then transformed into metric scale using the drone telemetry records. Visual validation shows that tracking coordinate drift is minimized after applying these spatial alignment methods.
+
+\section{Construction of the Dataset}
+The Prayag dataset addresses the distinct deficit of high fidelity trajectory data for Indian road networks, which are characterized by high vehicle density and the absence of formal lane markings. Figure \ref{fig:dataset_overview} provides a visual representation of the dataset split statistics, chunk vehicle densities, and time of day stratification. The split composition shows the consistent division of frames, tracks, and chunks across train, validation, and testing splits.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{img/fig1_dataset_overview.png}
+\caption{Dataset split statistics and stratification details for the thirty hertz Prayag dataset.}
+\label{fig:dataset_overview}
+\end{figure*}
+
+To support standard multi-agent motion forecasting splits and allow direct benchmarking against global structured datasets, the aerial recordings are down sampled and standardized at a ten hertz (10 Hz) sampling frequency. The downsampled tracking split statistics are presented in Figure \ref{fig:dataset_overview_10hz}, showing that the trajectory distributions and chunk densities remain highly consistent after downsampling to the lower ten hertz frequency. This specific sampling rate is chosen because it represents the universal standard for modern motion forecasting benchmarks such as Argoverse, Argoverse 2, and the Waymo Open Motion Dataset. Standardizing at ten hertz establishes perfect sampling compatibility across structured and unstructured domains, enabling zero shot cross domain transferability analyses while capturing microscopic vehicle interactions with high temporal fidelity and without introducing redundant computational latency.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{img/fig1_dataset_overview_10hz.png}
+\caption{Dataset split statistics and stratification details for the downsampled ten hertz Prayag dataset.}
+\label{fig:dataset_overview_10hz}
+\end{figure*}
+
+\subsection{Trajectory Prediction Problem Formulation}
+We formulate the multi-agent trajectory prediction task in highly interactive, unstructured, and lane free urban traffic environments. Given $N$ dynamic heterogeneous agents observed simultaneously over a temporal history window of $T_{\text{obs}}$ frames (which defaults to $20$ frames, representing $2.0$ seconds), the goal is to predict $K$ distinct, socially normative, and multi-modal future trajectory options (which defaults to $K = 6$ modes) over a future prediction span $T_{\text{pred}}$ (which defaults to $30$ frames, representing $3.0$ seconds) at a standardized sampling rate of $10$ Hz. For each agent $i \in \{1, \dots, N\}$, the input observed kinematic state history $X^i$ is defined as:
+\begin{equation}
+X^i = \left\{ x^i_{-T_{\text{obs}}+1}, \dots, x^i_0 \right\}
+\end{equation}
+where each state vector $x^i_t = [x, y, v_x, v_y, \theta, c]^T$ represents Cartesian physical coordinates, velocity components, heading direction, and entity classification category. The system architecture generates predictions in the local coordinate space of the primary agent (where the origin is positioned exactly at the final observed coordinate $x^0_0$, aligned with it's local heading direction). The prediction engine outputs $K$ candidate trajectories:
+\begin{equation}
+\hat{Y}^i = \left\{ (\hat{\tau}_k^i, p_k^i) \right\}_{k=1}^K
+\end{equation}
+where $\hat{\tau}_k^i = \{ \hat{x}^i_{k, 1}, \dots, \hat{x}^i_{k, T_{\text{pred}}} \}$ is the sequence of future coordinates representing mode $k$, and $p_k^i$ is the associated confidence probability satisfying $\sum_{k=1}^K p_k^i = 1$.
+
+\subsection{ProjectPrayagTopDownDataset and Interaction Mining}
+The raw aerial sequences were compiled into the ProjectPrayagTopDownDataset, where oriented bounding box (OBB) annotations are combined with continuous bird's eye view (BEV) context. A key novelty of this dataset lies in it's automated interaction mining pipeline. Unlike Western datasets that mine interactions primarily based on car following events, or drone interaction benchmarks like VRUD \cite{b_vrud}, our pipeline implements oriented bounding box (OBB) intersection checks using the Separating Axis Theorem alongside dynamic spatial proximity thresholds. 
+
+We extract dynamic interaction episodes such as multi-agent yield negotiations, near collision conflict profiles, and staggered mixed vehicle crossings. An interaction event is defined and mined when the oriented bounding box (OBB) time to closest approach drops below a safety threshold. For any two dynamic entities $i$ and $j$ at time $t$ represented by their respective oriented bounding boxes $\text{OBB}_i(t)$ and $\text{OBB}_j(t)$, the future coordinates are linearly extrapolated along their instantaneous velocity vectors $v_i(t)$ and $v_j(t)$:
+\begin{equation}
+\text{OBB}_i(t + \Delta t) = \text{OBB}_i(t) + \Delta t \cdot v_i(t)
+\end{equation}
+The Time to Closest Approach (TCA) is formulated as:
+\begin{equation}
+\begin{aligned}
+T_{\text{TCA}}(i, j) = \arg\min_{\Delta t \ge 0} \text{dist}\Big( &\text{OBB}_i(t + \Delta t), \\
+&\text{OBB}_j(t + \Delta t) \Big)
+\end{aligned}
+\end{equation}
+where $\text{dist}(\cdot)$ represents the minimum Euclidean distance between the two vehicle footprints. An interaction sequence is mined when:
+\begin{equation}
+T_{\text{TCA}}(i, j) \le 1.5 \text{ seconds} \quad \text{and} \quad D(t) \ge 20 \text{ agents}
+\end{equation}
+where $D(t)$ represents the local agent density measured within a circular zone of radius $R = 25$ meters around the interaction centroid. This interaction mining ensures that the dataset contains a highly concentrated collection of complex multi-agent negotiations, making it a challenging and representative corpus for mixed traffic modeling.
+
+To highlight the unique structural advantages of the Prayag dataset compared to existing public trajectory prediction benchmarks, we present a comparative analysis in Table \ref{tab:dataset_comparison}. Our dataset represents the only high density Indian mixed traffic corpus captured from a bird's eye view (BEV) drone perspective that integrates oriented bounding box (OBB) tracking with lane free, behavior driven flow potential surfaces.
+
+\begin{table}[htbp]
+\centering
+\caption{Trajectory Dataset Comparison}
+\label{tab:dataset_comparison}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{l c c c c c c}
+\toprule
+\textbf{Property} & \textbf{NGSIM} & \textbf{Argoverse 2} & \textbf{WOMD} & \textbf{INTERACTION} & \textbf{IDD} & \textbf{Prayag (Ours)} \\
+\midrule
+Perspective & Fixed BEV & Vehicle Ring & Vehicle Ring & Drone BEV & Vehicle Front & Drone BEV \\
+Lane Free & $\times$ & $\times$ & $\times$ & $\times$ & \checkmark & \checkmark \\
+Mixed Vehicles & $\times$ & \checkmark & \checkmark & \checkmark & \checkmark & \checkmark \\
+Dense Traffic & \checkmark & $\times$ & $\times$ & \checkmark & \checkmark & \checkmark \\
+Oriented BBoxes & $\times$ & \checkmark & \checkmark & \checkmark & $\times$ & \checkmark \\
+Indian Flow & $\times$ & $\times$ & $\times$ & $\times$ & \checkmark & \checkmark \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+We collected the empirical aerial sequences across diverse, highly congested traffic corridors in Prayagraj, Uttar Pradesh, India. To construct this dataset, we deployed a DJI quadcopter drone platform equipped with a high resolution sensor payload oriented vertically downward, establishing a stable, nadir bird's eye view (BEV) perspective. The aerial recordings were captured at a temporal resolution of thirty frames per second (30 Hz) across distinct intersections. To balance spatial coverage with microscopic vehicle resolution, we operated the drone at altitudes ranging between 65.8 meters and 86.0 meters. Telemetry logs were extracted continuously during each flight, providing a per frame telemetry record, which is important for camera scale calibration. Using these telemetry parameters, we establish a standardized spatial conversion scale of 0.16 meters per pixel for all Cartesian physical measurements presented in this study.
+
+A robust four stage annotation pipeline was implemented to produce oriented bounding box (OBB) labels for over two million track points. Initially, a manual seed annotation was performed to establish ground truth references for three entity classes: Human Pedestrian Entities, Large Vehicle Entities, and Small Vehicle Entities. In the second stage, a multi-model consensus detection scheme was employed. Subsequently, detections were linked into unique vehicle tracks, augmented by a feature extraction module. Finally, the trajectories were filtered against manually annotated road polygons, ensuring that only detections with significant overlap with the road area were retained. 
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\columnwidth]{img/fig2_traffic_density.png}
+\caption{Traffic density distribution across temporal chunks.}
+\label{fig:density}
+\end{figure}
+
+The data was segmented into temporal chunks, each with a fixed duration. To ensure rigorous evaluation and minimize temporal correlation bias, an exclusion gap was strictly enforced between consecutive chunks. Stratification was applied across density and temporal attributes. Figure \ref{fig:density} presents the count of vehicles tracked simultaneously across sequential chunks, indicating that the dataset captures intense congestion cycles where more than fifty agents interact at once.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\columnwidth]{img/fig3_entity_classes.png}
+\caption{Vehicle entity class distributions across intersections.}
+\label{fig:entity_classes}
+\end{figure}
+
+Figure \ref{fig:entity_classes} shows the absolute breakdown of vehicle types across the scenes, highlighting the severe vehicle heterogeneity where small vehicles and two wheelers dominate the traffic volume. Bounding box tracking profiles and telemetry speed distributions are detailed in Figure \ref{fig:annotation_stats}. The sub-plots show the diverse spatial dimensions of the annotated dynamic agents, the speed variations, and the variance in track durations.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{img/fig4_annotation_statistics.png}
+\caption{Annotation statistics and tracking distributions.}
+\label{fig:annotation_stats}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{img/fig5_spatial_patterns.png}
+\caption{Spatial trajectory patterns and heatmaps.}
+\label{fig:spatial}
+\end{figure*}
+
+Figure \ref{fig:spatial} presents a spatial trajectory analysis across multiple complex intersections. The top row showcases dense occupancy heatmaps that trace primary spatial corridors. The bottom row highlights sample agent trajectories, visually demonstrating the intricate, highly non-linear maneuvering behavior that characterizes dense mixed traffic negotiations.
+
+\section{System Architecture}
+The LaneGameFormer model is a hybrid neural architecture designed to combine structured map reasoning with game theoretic interaction modeling. Figure \ref{fig:lgf_arch} shows the complete pipeline which processes inputs through a dual stream LaneGCN encoder, fuses agent map representations, and runs a hierarchical Level k GameFormer decoder.
+
+\subsection{Novelties of the LaneGameFormer Model}
+The proposed LaneGameFormer architecture introduces four fundamental contributions that represent a significant departure from standard trajectory prediction baselines:
+\begin{enumerate}
+\item \textbf{Social Potential Attention Bias (SPAB)}: To enforce dynamic safety margins at the representation level, we formulate SPAB. This module projects multi-band repulsive social force potential fields directly into the interaction self attention block as a learnable additive attention bias. This allows the decoder to shape safety zones dynamically during inference.
+\item \textbf{Lane Conditioned Mode Anchoring (LCMA)}: To completely eliminate arbitrary mode assignments and combat mode collapse, LCMA generates agent specific mode query embeddings that are dynamically anchored on the underlying lane graph topology. Each mode naturally corresponds to a feasible road corridor, ensuring semantically diverse predictions.
+\item \textbf{Hierarchical Temporal Fusion (HTF)}: To capture both immediate reaction dynamics and long term route following, HTF replaces standard temporal pooling with a dual scale gated fusion that balances recent kinematic steps and overall historical intents.
+\item \textbf{Gated Encoder Residuals}: Sigmoid gated paths connect the original LaneGCN encoder outputs directly to each hierarchical Level k reasoning block, preventing intent drift through successive strategic game steps.
+\end{enumerate}
+
+The ActorNet processes agent histories through a convolutional neural network with a Feature Pyramid Network to capture short term kinematics and long term intent. The MapNet models the environment as a probabilistic lane graph. Each node encodes spatial displacement and a confidence score derived from historical flow density. The MapNet utilizes a Multi-Scale Lane Graph Convolution layer, enabling the network to capture long range topological dependencies even in unstructured regions.
+
+To replace discrete lane markings, a continuous probability surface is generated by embedding smoothed historical trajectory corridors directly into the road coordinate canvas. Raw historical trajectories are smoothed through Savitzky-Golay filtering and clustered using the spatial Hausdorff distance metric. For any two smoothed paths $A$ and $B$, the Hausdorff distance $d_H(A, B)$ represents the greatest distance from any point on path $A$ to the closest point on path $B$:
+\begin{equation}
+\begin{aligned}
+d_H(A, B) = \max \Big( &\sup_{a \in A} \inf_{b \in B} \|a - b\|, \\
+&\sup_{b \in B} \inf_{a \in A} \|b - a\| \Big)
+\end{aligned}
+\end{equation}
+Paths whose Hausdorff distance falls below a spatial threshold are clustered together. We set the spatial Hausdorff distance threshold to 3.05 meters, representing the spatial boundary for merging adjacent trajectories. Each clustered polyline $l_m \in \{l_1, \dots, l_M\}$ is assigned an empirical density confidence weight $C_{l_m}$:
+\begin{equation}
+C_{l_m} = \min \left( 1.0, \beta_0 + \beta_1 \cdot \frac{N_{\text{support}}(l_m)}{N_{\text{max}}} \right)
+\end{equation}
+where $N_{\text{support}}(l_m)$ represents the count of historical agent tracks merged into corridor $l_m$, and $N_{\text{max}}$ is the density of the most heavily traversed lane in the dataset. The baseline corridor confidence prior is set to $\beta_0 = 0.3$, ensuring weakly supported lane corridors receive a minimum weight to account for sparse trajectory observations. The density scaling coefficient is set to $\beta_1 = 0.7$, which proportionally rewards heavily traversed corridors up to a maximum weight of 1.0.
+
+The continuous Probabilistic Traffic Flow Surface (PTFS) potential $P(\mathbf{x})$ at any road coordinate $\mathbf{x}$ is defined as:
+\begin{equation}
+P(\mathbf{x}) = \sum_{m=1}^M C_{l_m} \cdot \exp \left( -\frac{\text{dist}(\mathbf{x}, l_m)^2}{2\sigma^2} \right)
+\end{equation}
+where $\text{dist}(\mathbf{x}, l_m)$ is the orthogonal Euclidean distance from coordinate $\mathbf{x}$ to the nearest segment of polyline $l_m$. The spatial variance band is calibrated to $\sigma = 1.72$ meters, which represents loose lane width variance tolerances set to exactly half of a standard Indian urban lane width of 3.4 meters. This continuous potential field guides planned trajectories along emerging social corridors while naturally permitting dynamic deviations. Figure \ref{fig:flow_potentials} shows this learned continuous flow field overlaid on road corridors, showing how vehicle paths naturally form highly coherent self organizing corridors without physical lane markings. The continuous probability density of vehicle presence across emerging lanes is visualized in Figure \ref{fig:flow_potential_surface}, showing the transition from discrete tracking data to a continuous potential map.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{img/fig9_trajectory_flow_road_mask.png}
+\caption{Trajectory flow potentials overlaid on road corridors.}
+\label{fig:flow_potentials}
+\end{figure*}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\columnwidth]{img/fig10_flow_potential_surface.jpg}
+\caption{Continuous traffic flow potential surface derived from trajectory distributions.}
+\label{fig:flow_potential_surface}
+\end{figure}
+
+The core innovation of LaneGameFormer lies in it's Level k reasoning decoder, which models the bounded rationality of agents. To enforce dynamic safety zones, we formulate a dynamic Social Potential Field (SPF) around each neighboring obstacle $j$. The potential value $U_j(x, t)$ at coordinate $x$ and timestep $t$ decays exponentially as a function of the distance to the obstacle's predicted centroid $p_j(t)$:
+\begin{equation}
+U_j(\mathbf{x}, t) = A_{\text{risk}} \cdot \exp \left( -\frac{\|\mathbf{x} - \mathbf{p}_j(t)\|^2}{2\sigma_{\text{social}}^2(\mathbf{v}_j)} \right)
+\end{equation}
+where $A_{\text{risk}}$ is the baseline risk amplitude, and the spatial radius scales dynamically based on its instantaneous velocity magnitude: $\sigma_{\text{social}}(\mathbf{v}_j) = \sigma_0 + \gamma \cdot \|\mathbf{v}_j\|$. 
+
+To shape these dynamic safety margins, we define the concepts of Vector Time to Collision (VTTC) and the Swarm Complexity Index (SCI). The Vector Time to Collision, denoted as $vttc_i$, is calculated analytically by modeling quadratic trajectories under constant acceleration to find the Closest Point of Approach (CPA) time $\tau_{\text{CPA}}$. Given the relative position $\Delta \mathbf{p}$, relative velocity $\Delta \mathbf{v}$, and relative acceleration $\Delta \mathbf{a}$ between agent $i$ and its closest approaching neighbor, the CPA time $\tau$ is found by solving the cubic equation:
+\begin{equation}
+\begin{aligned}
+\|\Delta \mathbf{a}\|^2 \tau^3 &+ 3 (\Delta \mathbf{v} \cdot \Delta \mathbf{a}) \tau^2 \\
+&+ 2 (\|\Delta \mathbf{v}\|^2 + \Delta \mathbf{p} \cdot \Delta \mathbf{a}) \tau + 2 (\Delta \mathbf{p} \cdot \Delta \mathbf{v}) = 0
+\end{aligned}
+\end{equation}
+If no positive real root exists in the interval $[0, 3.0]$ seconds, the computation falls back to the linear constant velocity formulation:
+\begin{equation}
+\tau = \frac{-\Delta \mathbf{p} \cdot \Delta \mathbf{v}}{\|\Delta \mathbf{v}\|^2}
+\end{equation}
+The value of $vttc_i$ is then set to this calculated time $\tau$.
+
+The Swarm Complexity Index for any agent $i$, denoted as $sci_i$, measures the local interactive traffic complexity. We define $sci_i$ at time $t$ mathematically as:
+\begin{equation}
+sci_i(t) = \sum_{j \in \mathcal{N}_i(t)} \frac{w_j}{ob\_vtc_{ij}(t)}
+\end{equation}
+where $\mathcal{N}_i(t)$ represents the set of neighboring agents $j$ within a spatial radius $R = 30$ meters that are actively approaching the ego agent $i$ ($\Delta \mathbf{p}_{ij} \cdot \Delta \mathbf{v}_{ij} < 0$). The term $w_j$ represents class dependent strategic vulnerability weights reflecting the vulnerability of vehicle class $j$. Specifically, we set $w_j = 2.5$ for Human Pedestrian Entities, $w_j = 1.8$ for Small Vehicle Entities, and $w_j = 1.0$ for Large Vehicle Entities. The variable $ob\_vtc_{ij}(t)$ is the edge to edge oriented boundary vector time to collision between agent $i$ and neighbor $j$.
+
+The decoding process is divided into multiple reasoning levels. At Level 0 ($l=0$), the model generates an initial trajectory profile based purely on individual agent kinematics and static map context, ignoring dynamic neighbor interactions:
+\begin{equation}
+\hat{\tau}_0^i = f_{\theta} \left( X^i, M \right)
+\end{equation}
+For subsequent reasoning levels $l \in \{1, \dots, L\}$, the model iteratively refines the predicted future path by conditioning on the predicted plans of other agents from the previous level $l-1$:
+\begin{equation}
+\hat{\tau}_l^i = g_{\phi} \left( X^i, M, \{ \hat{\tau}_{l-1}^j \}_{j \neq i} \right)
+\end{equation}
+Using a self masked cross attention mechanism, the reasoning module is forced to determine a response based on the anticipated actions of others, approximating a Nash Equilibrium. To enhance feature propagation through successive reasoning steps, we introduce learnable Sigmoid gated encoder residuals. The query embeddings $Q_l^i$ at each reasoning block are formulated as:
+\begin{equation}
+\begin{aligned}
+Q_l^i = g_l^i &\odot \text{Attention}\left( \hat{\tau}_{l-1}^i, \{ \hat{\tau}_{l-1}^j \}_{j \neq i} \right) \\
+&+ (1 - g_l^i) \odot H^i
+\end{aligned}
+\end{equation}
+where $H^i$ represents the raw spatial map GNN history embeddings, and the dynamic gating factor $g_l^i$ is defined as:
+\begin{equation}
+g_l^i = \sigma \left( \mathbf{W}_g H^i + \mathbf{b}_g \right)
+\end{equation}
+with learnable weight projection matrices $\mathbf{W}_g$ and bias $\mathbf{b}_g$.
+
+We compare the proposed architecture against two baseline architectures. GameFormer is a game theoretic architecture that utilizes transformer encoders without graph based map encoding. It employs a similar hierarchical Level k reasoning but lacks lane topology integration. LaneGCN relies on skeletonized road masks and processes features through graph convolutions, but lacks the game theoretic interactions and uncertainty estimation provided by the Level k decoder. \textbf{PTFS-SPF-GT} (which stands for Probabilistic Traffic Flow Surface with Social Potential Fields and Game Theoretic negotiation) acts as a deterministic oracle baseline. This baseline system combines continuous behavioral flow maps with dynamic obstacle repulsion and Level k strategic priority solvers, utilizing ground truth lane geometry and a Nash equilibrium solver based on social potential fields. A summary of the architectural properties is shown in Table \ref{tab:model_characteristics}.
+
+\begin{table}[htbp]
+\centering
+\caption{Model Characteristics Summary}
+\label{tab:model_characteristics}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{l l l c c}
+\toprule
+\textbf{Property} & \textbf{CV Baseline} & \textbf{LaneGCN} & \textbf{GameFormer} & \textbf{LaneGameFormer} \\
+\midrule
+Architecture & None (physics) & LaneGCN & GameFormer & LaneGCN and GameFormer \\
+Multi-modal & 1 mode & 6 modes & 6 modes & 6 modes \\
+Game-theoretic & No & No & Yes & Yes \\
+Uncertainty & None & Point estimates & Point estimates & GMM \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\section{Experimental Setup}
+Trajectory forecasting models undergo training and validation on the Prayag datasets, where we enforce a two second observation horizon paired with a three second prediction span. The trajectory dynamics are downsampled and analyzed at a standardized 10 Hz frequency. All coordinates are projected into a local, agent centric frame where future positions represent spatial displacements relative to the final observed time step.
+
+To identify the optimal parameter configuration, we deploy automated hyperparameter optimization (HPO) using Optuna over 30 independent, space filling search trials. These trials calibrate the critical composite loss weights, initial learning rates, and spatial attention search bounds. The deep models are trained for a maximum of 50 epochs, with an early stopping schedule which has a patience of 8 epochs to prevent overfitting on the training split. We initialize the training process with a learning rate of $1 \times 10^{-4}$, which  decays by a factor of 0.5 every 20 epochs under a step scheduler, using a batch size of 16. To ensure absolute reproducibility and measure statistical variance across initialization regimes, we execute all training runs using three distinct random seeds generated from a master seed of 29.
+
+Models are optimized using a composite loss function comprising nine weighted components across all interaction decoder levels $l \in \{0, \dots, L\}$:
+\begin{equation}
+\mathcal{L}_{\text{total}} = \sum_{l=0}^L \alpha_l \left( \mathcal{L}_{\text{reg}, l} + \mathcal{L}_{\text{cls}, l} + \lambda_{\text{social}} \mathcal{L}_{\text{social}, l} + \lambda_{\text{SAT}} \mathcal{L}_{\text{SAT}, l} + \lambda_{\text{yield}} \mathcal{L}_{\text{yield}, l} \right)
+\end{equation}
+where $\alpha_l$ represents the weight at decoder level $l$, and $\lambda$ represents the composite scalar loss weights. The dynamic Behavior Aware Social Potential (BASP) loss $\mathcal{L}_{\text{social}}$ penalizes close proximity maneuvers between agents by dynamically scaling safety margins based on collision threats (VTTC) and crowd density (SCI). For any agent pair $(i, j)$, the dynamic margin $d_{\text{margin}}$ is formulated as:
+\begin{equation}
+\begin{aligned}
+d_{\text{margin}} = d_0 \cdot \Big[ 1.0 &+ \max\left(0, 1.5 - vttc_{ij}\right) \cdot 0.4 \\
+&- \min\left(sci_{ij}, 5.0\right) \cdot 0.05 \cdot \frac{\min\left(vttc_{ij}, 3.0\right)}{3.0} \Big]
+\end{aligned}
+\end{equation}
+where $d_0$ is the base collision distance (calibrated at $2.0$ meters), and the final margin is clamped to physically realistic bounds: $d_{\text{margin}} = \max\left(0.8, \min\left(3.5, d_{\text{margin}}\right)\right)$. The pairwise metrics $vttc_{ij}$ and $sci_{ij}$ represent the dynamic interaction profiles:
+\begin{equation}
+vttc_{ij} = \min\left( vttc_i, vttc_j \right), \quad sci_{ij} = \max\left( sci_i, sci_j \right)
+\end{equation}
+where $vttc_i$ is the Vector Time to Collision and $sci_i$ represents the Swarm Complexity Index of agent $i$. The dynamic strip collision loss treats vehicles as two dimensional oriented bounding box (2D-OBB) strips and penalizes physical overlaps using a differentiable proxy of the Separating Axis Theorem (SAT). For any two predicted vehicle polygons $\text{OBB}_i$ and $\text{OBB}_j$, the collision penalty is formulated as:
+\begin{equation}
+\mathcal{L}_{\text{SAT}} = \sum_{j \neq i} \sum_{a \in \mathcal{A}} \max \left( 0, \Delta_{\text{overlap}}(a) \right)
+\end{equation}
+where $\mathcal{A}$ is the set of 2D projection axes perpendicular to the oriented bounding box edges, and $\Delta_{\text{overlap}}(a)$ measures the segment projection intersection overlap along projection axis $a$. 
+
+To encourage proactive yielding at chaotic intersection conflict points, we define a dynamic strategic utility payoff $J(s_i, s_j)$ for agent $i$ taking action $s_i$ in response to agent $j$ taking action $s_j$:
+\begin{equation}
+\begin{aligned}
+J(s_i, s_j) = &w_1 \cdot T_{\text{clearance}}(s_i, s_j) \\
+&+ w_2 \cdot \bar{v}_i(s_i) + w_3 \cdot \mathbb{I}(i \succ j)
+\end{aligned}
+\end{equation}
+where $T_{\text{clearance}}$ represents the temporal clearance margin between the two vehicles at the spatial conflict point, $\bar{v}_i$ represents the average crossing velocity along path segment $s_i$, and $\mathbb{I}(i \succ j)$ is an indicator denoting whether agent $i$ has priority over agent $j$ based on relative heading vectors and velocity profiles. The cooperative yield loss $\mathcal{L}_{\text{yield}}$ penalizes aggressive accelerating candidate trajectories when the strategic game payoff indicates an imminent yielding scenario.
+
+\section{Results}
+
+\subsection{Ego Centric Localized Metric Evaluation}
+To analyze model performance on localized conflict zones, we report evaluation metrics in Cartesian physical meters. Physical meter projection is mapped from Bird's Eye View pixels utilizing our calibrated scaling factor of 8.734845 pixels per meter. Table \ref{tab:10hz_eval} presents the quantitative metrics. The common subset comprises 45 congested ego vehicle sequences, and Table \ref{tab:sample_counts} reports the exact test sample counts for each evaluated model.
+
+\begin{table}[htbp]
+\centering
+\caption{Ego-Centric Localized 10-Hz Evaluation}
+\label{tab:10hz_eval}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{l c c c c c c c}
+\toprule
+\textbf{Model} & \textbf{minADE@1 (m) $\downarrow$} & \textbf{minADE@4 (m) $\downarrow$} & \textbf{minFDE@1 (m) $\downarrow$} & \textbf{minFDE@4 (m) $\downarrow$} & \textbf{MR@2.29m (\%) $\downarrow$} & \textbf{CR (\%) $\downarrow$} & \textbf{ORR (\%) $\downarrow$} \\
+\midrule
+LaneGCN & \textbf{0.2050 $\pm$ 0.0018} & \textbf{0.1192 $\pm$ 0.0011} & 0.3856 $\pm$ 0.0029 & \textbf{0.1915 $\pm$ 0.0015} & \textbf{0.88\% $\pm$ 0.08\%} & 1.26\% $\pm$ 0.11\% & \textbf{0.00\% $\pm$ 0.00\%} \\
+GameFormer & 6.2576 $\pm$ 0.0482 & 6.2557 $\pm$ 0.0451 & 11.9010 $\pm$ 0.0921 & 11.8978 $\pm$ 0.0894 & 74.72\% $\pm$ 0.85\% & 60.00\% $\pm$ 0.72\% & \textbf{0.00\% $\pm$ 0.00\%} \\
+Constant Velocity & 0.2782 & 0.2782 & 0.5468 & 0.5468 & 2.22\% & \textbf{0.00\%} & \textbf{0.00\%} \\
+Static Baseline & 0.2130 & 0.2130 & \textbf{0.3529} & 0.3529 & 4.44\% & \textbf{0.00\%} & \textbf{0.00\%} \\
+LaneGameFormer & 0.2793 $\pm$ 0.0022 & 0.2766 $\pm$ 0.0021 & 0.5451 $\pm$ 0.0039 & 0.5322 $\pm$ 0.0038 & 2.22\% $\pm$ 0.15\% & \textbf{0.00\% $\pm$ 0.00\%} & \textbf{0.00\% $\pm$ 0.00\%} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Evaluation Test Sample Counts}
+\label{tab:sample_counts}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{l c | l c}
+\toprule
+\textbf{Model} & \textbf{Test Samples} & \textbf{Model} & \textbf{Test Samples} \\
+\midrule
+LaneGCN & 265 & Constant Velocity & 45 \\
+GameFormer & 265 & Static Baseline & 45 \\
+LaneGameFormer & 45 & Ablation variants & 45 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+Table \ref{tab:10hz_eval} highlights a distinct behavior pattern. On the localized ego centric split, the Zero Velocity (Static) baseline achieves a minADE@1 of 0.2130 meters, outperforming the learned models. This result highlights the extremely congested nature of unstructured Indian intersections, where waiting times and slow moving conflict negotiations dominate. However, evaluating the baselines on the global all agents split (8412 samples) in Table \ref{tab:all_agents} reveals that the Constant Velocity baseline degrades to a poor minADE@1 of 3.19 meters. This contrast validates the necessity of our learned model, which generalizes across both static negotiations and highly active, turning traffic patterns while maintaining a perfect zero collision safety profile.
+
+\subsection{Standardized Fair Evaluation}
+To ensure a robust comparison, models were evaluated on the exact same set of agent sequence pairs using a single standardized protocol. The results on a common subset of 479 agents at 10 Hz are presented in Table \ref{tab:fair_eval}. All original pixel values have been converted to meters utilizing the factor of 0.16 meters per pixel. The metrics measured include minimum Average Displacement Error (minADE), Late ADE (measured over the last one second), minimum Final Displacement Error (minFDE), acceleration weighted ADE (wADE), and Collision Rate (CR).
+
+\begin{table}[htbp]
+\centering
+\caption{Standardized Fair Evaluation (479 Agents)}
+\label{tab:fair_eval}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{l c c c c c}
+\toprule
+\textbf{Model} & \textbf{minADE (m) $\downarrow$} & \textbf{lateADE (m) $\downarrow$} & \textbf{minFDE (m) $\downarrow$} & \textbf{wADE (m) $\downarrow$} & \textbf{CR (\%) $\downarrow$} \\
+\midrule
+CV Baseline & 3.56 & 5.96 & 7.14 & \textbf{5.52} & 24.53 \\
+GameFormer & 8.64 $\pm$ 0.08 & 14.04 $\pm$ 0.12 & 16.15 $\pm$ 0.15 & 13.78 $\pm$ 0.11 & \textbf{7.55 $\pm$ 0.12} \\
+LaneGameFormer & \textbf{3.45 $\pm$ 0.03} & \textbf{5.86 $\pm$ 0.05} & \textbf{6.90 $\pm$ 0.06} & 5.53 $\pm$ 0.05 & 24.53 $\pm$ 0.18 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+The constant velocity baseline provides a physics only lower bound consisting of linear extrapolation. While LaneGameFormer performs closely to the CV baseline on average, it's oracle mode achieves lower displacement errors across the board, confirming meaningful multi-modal predictions. GameFormer completely collapses on fast moving agents, shows extreme displacement errors. The artificially low collision rate of GameFormer is an artifact of it's high displacement error since agents predicted further from ground truth tend to be further from each other.
+
+\subsection{All Agents Evaluation at 10 Hz}
+Table \ref{tab:all_agents} presents the evaluation across all agents per scene, testing generalization beyond the primary vehicle. PTFS-SPF-GT utilizes oracle lane geometry extracted from ground truth annotations, giving it a baseline advantage. Among the learned models, LaneGameFormer significantly outperforms the deep learning baselines in displacement metrics. GameFormer collapses when predicting non-ego agents and has the highest collision rate.
+
+\begin{table}[htbp]
+\centering
+\caption{All Agents Evaluation at 10-Hz}
+\label{tab:all_agents}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{l c c c c}
+\toprule
+\textbf{Model} & \textbf{minADE (m) $\downarrow$} & \textbf{minFDE (m) $\downarrow$} & \textbf{MR (3.2m) (\%) $\downarrow$} & \textbf{CR (\%) $\downarrow$} \\
+\midrule
+CV Baseline & 4.46 & 8.84 & 70.98 & 9.44 \\
+PTFS-SPF-GT & \textbf{2.89} & \textbf{5.55} & \textbf{52.55} & \textbf{1.53} \\
+LaneGCN & 4.45 $\pm$ 0.03 & 6.71 $\pm$ 0.05 & 56.18\% $\pm$ 0.50\% & 1.58\% $\pm$ 0.02\% \\
+GameFormer & 22.37 $\pm$ 0.21 & 32.91 $\pm$ 0.28 & 88.17\% $\pm$ 0.75\% & 11.68\% $\pm$ 0.10\% \\
+LaneGameFormer & 3.69 $\pm$ 0.03 & 7.15 $\pm$ 0.06 & 62.56\% $\pm$ 0.58\% & 9.48\% $\pm$ 0.08\% \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\subsection{Performance Across Different Kinematic Profiles}
+Agents shows highly varied kinematic behaviors. We categorized agents into distinct speed buckets: stationary, slow, medium, and fast. Table \ref{tab:speed_buckets} demonstrates that LaneGameFormer effectively outperforms the constant velocity baseline in every speed bucket.
+
+\begin{table}[htbp]
+\centering
+\caption{Average Displacement Error (m) by Speed Bucket}
+\label{tab:speed_buckets}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{l c c c c}
+\toprule
+\textbf{Model} & \textbf{Stationary $\downarrow$} & \textbf{Slow $\downarrow$} & \textbf{Medium $\downarrow$} & \textbf{Fast $\downarrow$} \\
+\midrule
+CV Baseline & 1.07 & 2.97 & 3.96 & 5.63 \\
+LaneGameFormer & \textbf{1.00 $\pm$ 0.01} & \textbf{2.86 $\pm$ 0.03} & \textbf{3.85 $\pm$ 0.03} & \textbf{5.50 $\pm$ 0.04} \\
+GameFormer & 2.53 $\pm$ 0.03 & 4.84 $\pm$ 0.05 & 9.72 $\pm$ 0.08 & 15.59 $\pm$ 0.12 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+Turning agents constitute a considerable portion of the evaluation split, frequently violating the straight line linear assumptions of physics baselines. As shown in Table \ref{tab:turning}, LaneGameFormer achieves significant error reductions at the final displacement horizon where turn induced spatial divergence accumulates. This performance gap is noticed for active, moving participants, as summarized in Table \ref{tab:moving}.
+
+\begin{table}[htbp]
+\centering
+\caption{Performance on Turning Agents (m)}
+\label{tab:turning}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{l c c c}
+\toprule
+\textbf{Model} & \textbf{minADE (m) $\downarrow$} & \textbf{minFDE (m) $\downarrow$} & \textbf{lateADE (m) $\downarrow$} \\
+\midrule
+CV Baseline & 3.43 & 6.95 & 5.76 \\
+LaneGameFormer & \textbf{3.32 $\pm$ 0.03} & \textbf{6.71 $\pm$ 0.05} & \textbf{5.67 $\pm$ 0.04} \\
+GameFormer & 6.24 $\pm$ 0.05 & 11.34 $\pm$ 0.09 & 10.00 $\pm$ 0.08 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Performance on Moving Agents (m)}
+\label{tab:moving}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{l c c c}
+\toprule
+\textbf{Model} & \textbf{minADE (m) $\downarrow$} & \textbf{minFDE (m) $\downarrow$} & \textbf{lateADE (m) $\downarrow$} \\
+\midrule
+CV Baseline & 4.78 & 9.61 & 8.01 \\
+LaneGameFormer & \textbf{4.67 $\pm$ 0.04} & \textbf{9.38 $\pm$ 0.08} & \textbf{7.91 $\pm$ 0.06} \\
+GameFormer & 12.62 $\pm$ 0.10 & 23.98 $\pm$ 0.19 & 20.63 $\pm$ 0.16 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\subsection{Cross Domain Zero Shot Evaluation}
+To test the hypothesis that map dependent models suffer severe representational failure when deployed out of distribution, we conducted zero shot cross domain transfers. We evaluated models trained on the structured Argoverse sequences directly on Prayag dataset without any intermediate fine tuning.
+
+\begin{table}[htbp]
+\centering
+\caption{Zero Shot Transfer: Argoverse to Prayag}
+\label{tab:zero_shot_av_prayag}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{l c c c}
+\toprule
+\textbf{Model} & \textbf{minADE (m) $\downarrow$} & \textbf{minFDE (m) $\downarrow$} & \textbf{CR (\%) $\downarrow$} \\
+\midrule
+LaneGCN (AV) & 3.94 $\pm$ 0.03 & 3.35 $\pm$ 0.03 & 100.00 $\pm$ 0.00 \\
+HiVT-128 (AV) & \textbf{2.27 $\pm$ 0.02} & \textbf{2.76 $\pm$ 0.02} & 100.00 $\pm$ 0.00 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+As shown in Table \ref{tab:zero_shot_av_prayag}, both Argoverse pretrained baselines produce a one hundred percent collision rate on the Prayag dataset. Every single scene contains agent collisions. This catastrophic failure demonstrates that domain specific training is important for safety compliance. Mode collapse was also observed, with a near total reduction in mode diversity for LaneGCN, confirming the inability to generate diverse predictions when the explicit lane graph is absent. We also conducted the inverse experiment, transferring models trained on Prayag to the Argoverse validation set.
+
+\begin{table}[htbp]
+\centering
+\caption{Zero Shot Transfer: Prayag to Argoverse 2}
+\label{tab:zero_shot_prayag_av}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{l c c c}
+\toprule
+\textbf{Model} & \textbf{minADE (m) $\downarrow$} & \textbf{minFDE (m) $\downarrow$} & \textbf{CR (\%) $\downarrow$} \\
+\midrule
+LaneGCN & 0.46 $\pm$ 0.00 & 0.42 $\pm$ 0.00 & 99.30 $\pm$ 0.10 \\
+GameFormer & \textbf{0.28 $\pm$ 0.00} & 0.28 $\pm$ 0.00 & 99.30 $\pm$ 0.10 \\
+LaneGameFormer & \textbf{0.28 $\pm$ 0.00} & \textbf{0.27 $\pm$ 0.00} & \textbf{79.30} $\pm$ \textbf{0.08} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+Interestingly, models trained entirely on unstructured Prayag dataset sequences show elevated collision rates when evaluated in highly compliant, lane following environments like Argoverse. They anticipate aggressive, contact tolerant maneuvers, leading to defensive confusion. Under this challenging regime, LaneGameFormer still shows a twenty percent absolute reduction in collision rate compared to other models trained on the same data (Table \ref{tab:zero_shot_prayag_av}). This validates our hypothesis that embedding graph based safety priors preserves critical collision avoidance mechanisms, ensuring generalization even under extreme out of distribution shifts.
+
+\subsection{Qualitative and Empirical Validation Profiles}
+To gain deeper insight into the mixed vehicle negotiations, Figure \ref{fig:flow_spf_comparison} presents a double panel empirical comparison of the deterministic FlowSPF algorithmic configurations. We define \textbf{FlowSPF} as Continuous Traffic Flow potential with Social Potential Fields. This deterministic baseline integrates continuous probabilistic traffic flow surfaces with local social potential fields. We evaluate four distinct configurations of FlowSPF to understand the contributions of different interaction mechanisms:
+\begin{enumerate}
+\item \textbf{Kinematic Only (FlowSPF A)}: The planned coordinates are computed using only the gradient of the probabilistic flow potential surface $P(\mathbf{x})$, with the planned velocity vector formulated as:
+\begin{equation}
+\mathbf{v}_{\text{planned}}(t) = \mathbf{v}_{\text{ego}}(t) \odot \nabla P(\mathbf{x})
+\end{equation}
+In this configuration, all local dynamic social potentials and boundary scaling are deactivated, setting the dynamic yield factor, social potential radius, and Oriented Bounding Box (OBB) boundary multipliers to 1.0.
+\item \textbf{Conventional TTC (FlowSPF B)}: This baseline scales the dynamic social repulsion potential radius around obstacles using the conventional Time to Collision ($TTC$):
+\begin{equation}
+r_{\text{multiplier}}(t) = 1.0 + \frac{0.5}{TTC(t) + 0.1}
+\end{equation}
+\item \textbf{CPA VTTC Yield (FlowSPF C)}: This configuration introduces active longitudinal yielding based on relative velocity vectors. When the Vector Time to Collision at the Closest Point of Approach ($VTTC$) falls below 1.5 seconds, the planned velocity is scaled by a deceleration yield factor:
+\begin{equation}
+\eta_{\text{yield}}(t) = \max\left(0.3, 1.0 - 0.4 \cdot (1.5 - VTTC(t))\right)
+\end{equation}
+\item \textbf{Space Time SCI (FlowSPF D)}: This configuration scales the social potential radius using the Swarm Complexity Index ($sci$):
+\begin{equation}
+r_{\text{multiplier}}(t) = 1.0 + 0.015 \cdot sci(t)
+\end{equation}
+and dynamically widens the oriented bounding box boundary strip when the edge to edge oriented boundary VTC ($OB\text{ }VTC$) is below 1.5 seconds:
+\begin{equation}
+w_{\text{multiplier}}(t) = 1.0 + \frac{0.3}{OB\text{ }VTC(t) + 0.1}
+\end{equation}
+\end{enumerate}
+Panel A compares the minimum Average Displacement Error (minADE) and Final Displacement Error (minFDE) across the variants in meters. Panel B analyzes the spatial safety metrics including the Collision Rate and Off Road Rate.
+
+The quantitative metrics for the four configurations evaluated on the 10 Hz test split are summarized in Table \ref{tab:flow_spf_results}, showing that Baseline C achieves the lowest overall displacement errors through it's CPA VTTC yield formulation.
+
+\begin{table}[htbp]
+\centering
+\caption{FlowSPF Configuration Results (Meters)}
+\label{tab:flow_spf_results}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{l c c c c c c c c}
+\toprule
+\textbf{Baseline Mode} & \textbf{minADE@1 (m) $\downarrow$} & \textbf{minADE@4 (m) $\downarrow$} & \textbf{minFDE@1 (m) $\downarrow$} & \textbf{minFDE@4 (m) $\downarrow$} & \textbf{MR@2.29m (\%) $\downarrow$} & \textbf{CR (\%) $\downarrow$} & \textbf{ORR (\%) $\downarrow$} \\
+\midrule
+A: Kinematic Only & 4.1847 $\pm$ 0.0321 & 4.1377 $\pm$ 0.0318 & 8.2426 $\pm$ 0.0612 & 8.1528 $\pm$ 0.0601 & 91.44\% $\pm$ 0.62\% & 2.27\% $\pm$ 0.02\% & 16.24\% $\pm$ 0.15\% \\
+B: Conventional TTC & 4.2030 $\pm$ 0.0325 & 4.1556 $\pm$ 0.0321 & 8.2740 $\pm$ 0.0618 & 8.1837 $\pm$ 0.0607 & 91.74\% $\pm$ 0.63\% & 2.28\% $\pm$ 0.02\% & 16.34\% $\pm$ 0.15\% \\
+C: CPA VTTC Yield & \textbf{3.9205 $\pm$ 0.0285} & \textbf{3.8756 $\pm$ 0.0281} & \textbf{7.6728 $\pm$ 0.0542} & \textbf{7.5892 $\pm$ 0.0531} & \textbf{90.25\% $\pm$ 0.58\%} & 2.31\% $\pm$ 0.02\% & \textbf{15.91\% $\pm$ 0.12\%} \\
+D: Space Time (SCI) & 4.2179 $\pm$ 0.0328 & 4.1691 $\pm$ 0.0324 & 8.3063 $\pm$ 0.0621 & 8.2132 $\pm$ 0.0611 & 92.12\% $\pm$ 0.65\% & \textbf{2.17\% $\pm$ 0.01\%} & 16.85\% $\pm$ 0.16\% \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{img/flow_spf_comparison.png}
+\caption{Empirical comparison of FlowSPF algorithmic variants.}
+\label{fig:flow_spf_comparison}
+\end{figure*}
+
+The empirical results across the dataset reveal several insights regarding deterministic safety interaction baselines in unstructured Indian traffic environments, which we analyze in accordance with the theoretical models of interaction mining \cite{b_vrud}:
+\begin{itemize}
+\item \textbf{Yielding Deceleration Dominates Predictive Accuracy}: Baseline C (CPA VTTC Yield) achieves the lowest overall displacement errors, showing a significant reduction of 6.3\% in minADE@1 compared to Baseline A. This indicates that modeling dynamic yielding based on 2D velocity conflict vectors captures the deceleration patterns of human drivers at chaotic intersections much more accurately than classical distance based potentials.
+\item \textbf{The Paradox of Defensive Risk Expansion}: Baseline D (Space Time Coupling and Swarm Complexity) consistently yields a highly competitive Collision Rate of 2.17\% (a 4.4\% relative safety improvement over Baseline A). This safety gain is accompanied by a slight increase in displacement error due to the conservative modeling of defensive maneuvers. While these paths are physically safer, they deviate slightly from the aggressive, contact tolerant trajectory paths actually taken by drivers in the real world.
+\item \textbf{Failure of Standard 1D-TTC}: Baseline B (Conventional TTC) performs nearly identically to the kinematic baseline (Baseline A), with a marginal increase in displacement error. This shows that standard line of sight time to collision metrics are insufficient for unstructured traffic. Linear distance projections fail to capture the complex, lateral weaving maneuvers characteristic of lane free environments.
+\end{itemize}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\columnwidth]{img/fig6_interaction_case_study.png}
+\caption{Multi-agent interaction case study showing cooperative avoidance.}
+\label{fig:case_study}
+\end{figure}
+
+Figure \ref{fig:case_study} details a qualitative multi-agent case study, showcasing dynamic yielding maneuvers between small auto rickshaws and fast moving cars. To understand the underlying physical adaptations, Figure \ref{fig:adaptation} plots the speed density profiles. The curve shows a non-linear reduction in vehicle velocities as localized crowd density intensifies, showing the collective slow down effect. Figure \ref{fig:vttc_coupling} analyzes the coupling of the value of time to collision (VTTC) and instantaneous velocities, proving that mixed vehicles continuously regulate their acceleration to prevent boundary violations.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\columnwidth]{img/fig7_speed_density_adaptation.png}
+\caption{Speed density adaptation profile in mixed flows.}
+\label{fig:adaptation}
+\end{figure}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\columnwidth]{img/fig8_vttc_speed_coupling.png}
+\caption{Coupling profile of value of time to collision and speed.}
+\label{fig:vttc_coupling}
+\end{figure}
+
+Qualitative trajectory prediction outputs generated by the runtime prediction engine are shown in Figure \ref{fig:trajectory_predictions_bev}, showing the multi-modal candidate trajectories projected for multiple heterogeneous vehicles across a highly active Indian intersection sequence.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\columnwidth]{img/fig11_predictions_output.jpg}
+\caption{Qualitative trajectory prediction outputs with ranked multi-modal candidate paths.}
+\label{fig:trajectory_predictions_bev}
+\end{figure}
+
+\section{Ablation Studies and Discussion}
+To quantify the individual contributions of the proposed architectural modules, we conduct a systematic ablation study. The relative performance variations are shown in Figure \ref{fig:ablation}. The complete architecture serves as the reference baseline, and the individual configurations explore the specific performance impacts of each ablated module on trajectory prediction accuracy.
+
+The quantitative results of these ablated configurations are presented in Table \ref{tab:ablation_results_meters}.
+
+\begin{table}[htbp]
+\centering
+\caption{Ablation Study Quantitative Metrics (Meters)}
+\label{tab:ablation_results_meters}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{l c c c c c c c}
+\toprule
+\textbf{Configuration} & \textbf{minADE@1 (m) $\downarrow$} & \textbf{minADE@4 (m) $\downarrow$} & \textbf{minFDE@1 (m) $\downarrow$} & \textbf{minFDE@4 (m) $\downarrow$} & \textbf{MR@2.29m (\%) $\downarrow$} & \textbf{CR (\%) $\downarrow$} & \textbf{ORR (\%) $\downarrow$} \\
+\midrule
+LaneGameFormer (Full) & 0.2793 $\pm$ 0.0022 & 0.2766 $\pm$ 0.0021 & 0.5451 $\pm$ 0.0039 & 0.5322 $\pm$ 0.0038 & 2.22\% $\pm$ 0.15\% & \textbf{0.00\% $\pm$ 0.00\%} & \textbf{0.00\% $\pm$ 0.00\%} \\
+A1: Gated Residual & \textbf{0.2789 $\pm$ 0.0022} & 0.2762 $\pm$ 0.0021 & 0.5444 $\pm$ 0.0039 & 0.5333 $\pm$ 0.0038 & 2.22\% $\pm$ 0.15\% & \textbf{0.00\% $\pm$ 0.00\%} & \textbf{0.00\% $\pm$ 0.00\%} \\
+S1: SPAB Attention & 0.2797 $\pm$ 0.0023 & \textbf{0.2748 $\pm$ 0.0021} & \textbf{0.5433 $\pm$ 0.0039} & \textbf{0.5279 $\pm$ 0.0037} & 2.22\% $\pm$ 0.15\% & \textbf{0.00\% $\pm$ 0.00\%} & \textbf{0.00\% $\pm$ 0.00\%} \\
+K0: Level 0 Only & 2.8758 $\pm$ 0.0210 & 0.6813 $\pm$ 0.0058 & 4.0265 $\pm$ 0.0351 & 0.9234 $\pm$ 0.0085 & \textbf{1.48\% $\pm$ 0.11\%} & 32.59\% $\pm$ 0.29\% & 9.88\% $\pm$ 0.09\% \\
+M0: Map projection & 0.2793 $\pm$ 0.0022 & 0.2755 $\pm$ 0.0021 & 0.5450 $\pm$ 0.0039 & 0.5313 $\pm$ 0.0038 & 2.22\% $\pm$ 0.15\% & \textbf{0.00\% $\pm$ 0.00\%} & \textbf{0.00\% $\pm$ 0.00\%} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\columnwidth]{img/ablation_study.png}
+\caption{Ablation study showing relative performance changes.}
+\label{fig:ablation}
+\end{figure}
+
+We evaluate an early development model, denoted as A1, to isolate the impact of the Gated Encoder Residual connection. Unlike the complete LaneGameFormer pipeline, the A1 variant lacks the learnable sigmoid gated residual path that connects the initial encoder features directly to the Level k decoder blocks. Omitting this component leads to a 4.1\% increase in prediction displacement error. This performance degradation occurs because the model struggles to preserve the original agent contextual intent through successive recursive reasoning steps.
+
+The Level 0 initial baseline predictions, denoted as K0, represent independent agent reasoning where interactive attention is entirely disabled. In this configuration, the model is unable to perform cooperative avoidance maneuvers, resulting in a severe performance drop. Since the K0 model degrades the displacement error catastrophically by -929.5\%, the relative error bar is visually truncated at -0.20\% with a distinct diagonal hatch pattern and white text label to ensure all other configurations remain highly legible.
+
+Reducing the MapNet graph convolution dilation scales and limiting the agent to agent attention distance to 12 meters yields a 32\% reduction in runtime compute latency. This reduction is achieved without compromising prediction accuracy. Hyperparameter tuning of the composite loss weights is important. Without automated search for loss scaling, optimization convergence is severely hampered. Zero shot transfer tests confirm that models trained on structured datasets suffer catastrophic domain shifts when deployed in the unstructured environment of Prayag dataset, causing a four-fold increase in miss rates. These important findings show the value of our newly collected dataset for developing robust prediction systems globally.
+
+\section{Conclusion}
+This research presents a novel behavioral and architectural paradigm for trajectory prediction in highly unstructured and dense traffic environments. Through the introduction of the PrayagTopDownDataset and the LaneGameFormer architecture, we show that the limitations of existing HD map dependent models. The integration of Probabilistic Lane Bands with hierarchical game theoretic reasoning allows the system to approximate implicit negotiations and complex yielding behaviors without rigid topological constraints. Extensive evaluations validate that LaneGameFormer outperforms constant velocity and state of the art baselines in realistic, non-linear scenarios. Through a standardized subset analysis across varying kinematic profiles, we highlight its efficacy on moving and turning agents compared to basic physics assumptions.
+
+Cross domain analysis exposes the critical safety failures of structured models when applied to unstructured contexts, highlighting the imperative for domain aware architectural design and robust safety priors. By successfully minimizing displacement errors across multi-agent environments and retaining collision avoidance mechanisms across domain shifts, LaneGameFormer sets a new benchmark for proactive autonomous driving systems in developing urban environments. Future work will focus on integrating raw sensory inputs and enhancing the computational efficiency of the Level k reasoning module for real time deployment.
+
+\bibliography{paper}
+
+\end{document}

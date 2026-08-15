@@ -1,0 +1,33 @@
+# PrayagGameFormer Requirements
+# ==============================
+# Python 3.11 compatible, CUDA 12.1+ compatible
+# Optimized for NVIDIA Quadro RTX 6000 (24GB VRAM)
+#
+# Installation:
+#   pip install -r requirements.txt
+#
+# For CUDA 12.1 with specific PyTorch version:
+#   pip install torch>=2.1.0 --index-url https://download.pytorch.org/whl/cu121
+
+# Core Deep Learning Framework
+torch>=2.1.0                    # PyTorch with CUDA support
+numpy>=1.24.0                   # Numerical computing
+scipy>=1.11.0                   # Scientific computing, multivariate_normal
+
+# Data Processing
+pandas>=2.0.0                   # Data manipulation and CSV handling
+tqdm>=4.65.0                    # Progress bars for training loops
+
+# Computer Vision
+opencv-python>=4.8.0            # Video/image processing
+opencv-contrib-python>=4.8.0    # Extended OpenCV modules
+scikit-image>=0.21.0            # Image processing utilities
+
+# Hyperparameter Optimization
+optuna>=3.4.0                   # Bayesian HPO with SQLite storage
+
+# Visualization (Optional)
+matplotlib>=3.7.0               # Plotting and visualization
+
+# Ray Tune Integration (Optional)
+# ray[tune]>=2.8.0              # Distributed HPO with ASHA scheduler
