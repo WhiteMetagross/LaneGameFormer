@@ -15,7 +15,7 @@ The codebase is modularized into 6 major subpackages spanning video stabilizatio
 | **`PhysicsAndBehaviorEngine/`** | Physics & Game Theory | PTFS emerging lane extraction, Social Potential Fields, SAT collision detection, strategic payoff solvers. | 7 |
 | **`ModelArchitectures/`** | Deep Learning Models | LaneGameFormer (Proposed), LaneGCN, and PrayagGameFormer baseline architectures. | 21 |
 | **`ExperimentsAndBenchmarks/`** | Benchmarking & Evaluation | Standardized fair benchmark (479 agents), baseline evaluators, training pipelines, cross-domain tests. | 17 |
-| **`PaperFiguresAndVisualization/`** | Visualization & LaTeX | High-resolution publication figure generators, qualitative BEV renderers, complete CoRL LaTeX source. | 23 |
+| **`PaperFiguresAndVisualization/`** | Visualization & LaTeX | High-resolution publication figure generators, qualitative BEV renderers, complete CoRL LaTeX source. | 25 |
 
 
 ---
@@ -106,6 +106,8 @@ Code/
 │       ├── test_models.py
 │       └── test_models_on_largedatasets.py
 └── PaperFiguresAndVisualization/
+    ├── Architecture.svg
+    ├── architecture_diagram.py
     ├── draw_architecture.py
     ├── generate_ablation_graphs.py
     ├── generate_dataset_paper_figures.py
@@ -313,7 +315,9 @@ The `PaperFiguresAndVisualization` module contains figure generators, visualizat
 
 | File / Directory | Visual Asset / Script | Figure Description & Paper Reference | Output Format |
 | :--- | :--- | :--- | :---: |
-| **`draw_architecture.py`** | Architecture Diagram | High-resolution schematic showing LaneGCN encoder and GameFormer decoder dataflow. | Vector / PNG |
+| **`Architecture.svg`** | Architecture Diagram | Hand-authored vector SVG diagram for the LaneGameFormer architecture. | Vector SVG |
+| **`architecture_diagram.py`** | Compatibility SVG Publisher | Entry point re-exporting canonical SVG validation and generation routines. | Python module |
+| **`draw_architecture.py`** | Architecture Publisher | Publishes and validates the canonical editable LaneGameFormer architecture SVG. | Vector / PNG |
 | **`generate_ablation_graphs.py`** | Ablation & FlowSPF Charts | Generates the ablation waterfall plot and FlowSPF comparison bar charts. | High-res PNG |
 | **`generate_dataset_paper_figures.py`** | Dataset Figures | Generates dataset composition, vehicle density, and entity class breakdown figures. | Multi-panel PNG |
 | **`generate_interaction_figures.py`** | Interaction Case Studies | Plots pairwise trajectory encounters, CPA distance profiles, and VTTC timelines. | High-res PNG |
