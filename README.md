@@ -258,7 +258,7 @@ python ExperimentsAndBenchmarks/FairBenchmarkSuite/run_fair_experiments.py \
 ## Publication Figures & Visualizations:
 All publication figures can be reproduced directly using the rendering scripts located in `PaperFiguresAndVisualization`.
 
-| **`draw_architecture.py`** | System architecture vector SVG publisher and validator. | `PaperFiguresAndVisualization/Architecture.svg` / `SVG/Architecture.svg` |
+| **`draw_architecture.py`** | System architecture vector SVG publisher and validator. | `PaperFiguresAndVisualization/Architecture.svg` |
 | **`architecture_diagram.py`** | Backward-compatible architecture diagram publisher. | `PaperFiguresAndVisualization/Architecture.svg` |
 | **`generate_ablation_graphs.py`** | Component ablation waterfall chart and FlowSPF comparison plots. | `PaperFiguresAndVisualization/LGF_CORLPaper/Img/ablation_study.png` |
 | **`generate_dataset_paper_figures.py`** | Dataset composition, vehicle density, and class distributions. | `PaperFiguresAndVisualization/LGF_CORLPaper/Img/fig1_dataset_overview.png` |

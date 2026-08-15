@@ -24,18 +24,20 @@ EXPECTED_CANVAS = {"width": "1149", "height": "541", "viewBox": "0 0 1149 541"}
 MINIMUM_EDITABLE_ELEMENTS = {"rect": 38, "path": 29, "text": 65}
 
 
-def project_root() -> Path:
-    """Return LaneGameFormer repository root from this script location."""
-    script = Path(__file__).resolve()
-    for parent in script.parents:
-        if (parent / "SVG" / "Architecture.svg").is_file():
-            return parent
-    raise FileNotFoundError("Cannot locate SVG/Architecture.svg from script path")
-
-
 def canonical_svg_path() -> Path:
     """Return canonical hand-authored SVG source."""
-    return project_root() / "SVG" / "Architecture.svg"
+    script = Path(__file__).resolve()
+    candidates = [
+        *(parent / "SVG" / "Architecture.svg" for parent in script.parents),
+        *(parent / "ResearchPaper" / "PythonCodesAndSVG" / "SVG" / "Architecture.svg" for parent in script.parents),
+        *(parent / "ResearchPaper" / "PythonCodesAndSVG" / "LaneGameFormer_Architecture.svg" for parent in script.parents),
+        script.parent / "Architecture.svg",
+        script.parent / "LaneGameFormer_Architecture.svg",
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate.resolve()
+    raise FileNotFoundError("Cannot locate canonical Architecture.svg from script path")
 
 
 def validate_svg(svg_path: Path) -> dict[str, int]:
