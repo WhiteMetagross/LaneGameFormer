@@ -1,30 +1,93 @@
-# LaneGameFormer: A Unified Motion Forecasting Framework for Dense Unstructured Traffic:
+# LaneGameFormer: Multi-Agent Motion Forecasting in Dense Unstructured Urban Traffic via Flow-Surface Game Theory:
 
-## Project Overview:
-LaneGameFormer (LGF) is a motion forecasting framework designed for dense, heterogeneous, and unstructured traffic environments.
-Unlike conventional structured highways where vehicles adhere strictly to marked lanes and standardized traffic rules, unstructured urban intersections in emerging economies exhibit high agent density, diverse vehicle classes, lack of physical lane markings, and continuous microscopic negotiation.
-LaneGameFormer addresses these challenges through a synergistic architecture combining dynamic Probabilistic Traffic Flow Surfaces (PTFS), Social Potential Fields (SPF), Vector Time-to-Collision (VTTC) interaction mining, and hierarchical Level-$k$ game-theoretic reasoning.
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch 2.0+](https://img.shields.io/badge/pytorch-2.0+-orange.svg)](https://pytorch.org/)
+[![CUDA 11.8+](https://img.shields.io/badge/cuda-11.8+-green.svg)](https://developer.nvidia.com/cuda-toolkit)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Conference: CoRL 2026](https://img.shields.io/badge/Conference-CoRL%202026-purple.svg)](https://corl.org/)
+
+## Executive Overview:
+**LaneGameFormer (LGF)** is a unified multi-agent trajectory prediction framework engineered specifically for dense, heterogeneous, and unstructured urban traffic environments.
+Unlike conventional structured driving scenarios where vehicles adhere strictly to painted lane markers and strict traffic signals, unstructured urban intersections in emerging economies exhibit extreme vehicle density, diverse vehicle classes (e.g., two-wheelers, auto-rickshaws, buses, pedestrians), lack of physical lane markings, and continuous microscopic negotiation.
+LaneGameFormer addresses these challenges through a synergistic architecture combining dynamic **Probabilistic Traffic Flow Surfaces (PTFS)**, **Social Potential Fields (SPF)**, **Vector Time-to-Collision (VTTC)** interaction mining, and **hierarchical Level-$k$ game-theoretic reasoning**.
 
 ---
 
-## Key Methodological Highlights:
-- **Probabilistic Traffic Flow Surfaces (PTFS)**: Discovers emergent virtual lane structures directly from unstructured trajectory clusters without requiring static High-Definition (HD) maps.
-- **Vector Time-to-Collision (VTTC) & Swarm Complexity Index (SCI)**: Solves the exact cubic polynomial for Closest Point of Approach (CPA) under acceleration to quantify interaction urgency across heterogeneous agent classes.
-- **Social Potential Attention Bias (SPAB)**: Injects continuous velocity-dependent repulsive safety fields into multi-head self-attention mechanisms to enforce physical collision avoidance.
-- **Lane-Conditioned Mode Anchoring (LCMA)**: Anchors multimodal prediction queries to topological flow polylines to prevent mode collapse.
-- **Hierarchical Temporal Fusion (HTF)**: Fuses short-term and long-term future temporal encodings through learnable gated embeddings during Level-$k$ interactive reasoning.
-- **Behavior-Aware Social Potential (BASP) Loss**: Imposes a dynamic safety clearance margin conditioned on real-time VTTC and swarm complexity.
+## Key Methodological Innovations:
+
+### 1. Probabilistic Traffic Flow Surfaces (PTFS):
+- Automatically discovers emergent virtual lane topology directly from historical trajectory clusters without requiring static High-Definition (HD) maps.
+- Trajectories are smoothed via Savitzky-Golay filtering and clustered using Hausdorff distance metrics ($d_H \le 3.05\text{ m}$).
+- Continuous flow potential is formulated as:
+  $$P(\mathbf{x}) = \sum_{m=1}^M C_{l_m} \exp\left(-\frac{\text{dist}(\mathbf{x}, l_m)^2}{2\sigma^2}\right), \quad C_{l_m} = \min\left(1.0, 0.3 + 0.7 \cdot \frac{N_{\text{support}}}{N_{\text{max}}}\right), \quad \sigma = 1.72\text{ m}$$
+
+.
+
+### 2. Vector Time-to-Collision (VTTC) & Swarm Complexity Index (SCI):
+- Solves the exact cubic polynomial for the time of Closest Point of Approach (CPA) $\tau$ under relative acceleration $\mathbf{r}(t) = \Delta \mathbf{p} + \Delta \mathbf{v} t + \frac{1}{2} \Delta \mathbf{a} t^2$:
+  $$\|\Delta \mathbf{a}\|^2 \tau^3 + 3 (\Delta \mathbf{v} \cdot \Delta \mathbf{a}) \tau^2 + 2 (\|\Delta \mathbf{v}\|^2 + \Delta \mathbf{p} \cdot \Delta \mathbf{a}) \tau + 2 (\Delta \mathbf{p} \cdot \Delta \mathbf{v}) = 0$$
+- Evaluates the dynamic Swarm Complexity Index (SCI) weighted by entity vulnerability classes ($w_{\text{HPE}}=2.5$, $w_{\text{SVE}}=1.8$, $w_{\text{LVE}}=1.0$):
+  $$sci_i(t) = \sum_{j \in \mathcal{N}_i, \Delta \mathbf{p} \cdot \Delta \mathbf{v} < 0} \frac{w_j}{ob\_vtc_{ij}(t)}$$
+
+.
+
+### 3. Social Potential Attention Bias (SPAB):
+- Injects continuous velocity-dependent repulsive safety fields into multi-head self-attention mechanisms.
+- Modulates multi-agent attention weights based on dynamic pairwise obstacle potentials to enforce physical collision avoidance.
+
+### 4. Lane-Conditioned Mode Anchoring (LCMA):
+- Generates anchor queries aligned with topological flow surface polylines.
+- Guarantees diverse multimodal future trajectory sampling and prevents mode collapse.
+
+### 5. FutureEncoder with Hierarchical Temporal Fusion (HTF):
+- Combines short-term mean pooling with long-term max pooling across predicted future horizons.
+- Employs a learnable gating mechanism to dynamically balance immediate tactical maneuvers against long-term navigational intent.
+
+### 6. Dynamic Behavior-Aware Social Potential (BASP) Loss:
+- Imposes an adaptive safety clearance margin $d_{\text{margin}}$ conditioned on real-time VTTC and swarm complexity:
+  $$d_{\text{margin}} = d_0 \left[1.0 + \max(0, 1.5 - vttc_{ij}) \cdot 0.4 - \min(sci_{ij}, 5.0) \cdot 0.05 \cdot \frac{\min(vttc_{ij}, 3.0)}{3.0}\right], \quad d_{\text{margin}} \in [0.8, 3.5]\text{ m}$$
+
+.
+
+---
+
+## System Architecture Pipeline:
+```
+[Agent Trajectory Histories] ──► [ActorNet (1D Dilated Conv)] ──┐
+                                                                ▼
+[Emergent PTFS Flow Polylines] ──► [MapNet (Graph ConvNet)] ────┼──► [Cross-Modal Fusion (A2M, M2M, M2A, A2A)]
+                                                                │
+                                                                ▼
+[Static Road Drivable Masks] ───────────────────────────────────┤
+                                                                ▼
+                                      [Hierarchical Level-k GameFormer Decoder]
+                                      ├── Level-0: Kinematic Motion Prior
+                                      ├── Level-1..L: Interactive Refinement
+                                      ├── SPAB: Social Potential Attention Bias
+                                      ├── LCMA: Lane-Conditioned Mode Anchoring
+                                      └── HTF: Hierarchical Temporal Fusion
+                                                                │
+                                                                ▼
+                                             [MultiModeGMMPredictor]
+                                             ├── 6 Multimodal Trajectories (K=6)
+                                             ├── Gaussian Uncertainty Matrices
+                                             └── Mode Selection Probabilities
+```.
 
 ---
 
 ## Repository Structure:
-- `VisionAndStabilization`: Contains video stabilization, telemetry parsing, coordinate calibration, and BoT-SORT multi-object tracking pipelines.
-- `DatasetPipeline`: Contains dataset chunking, frequency resampling to 10 Hz, class taxonomy mapping, and interaction mining routines.
-- `PhysicsAndBehaviorEngine`: Implements emerging lane discovery, social potential fields, 2D-OBB Separating Axis Theorem (SAT) collision detection, and game-theoretic payoff modeling.
-- `ModelArchitectures`: Contains PyTorch implementations of LaneGameFormer, LaneGCN, and PrayagGameFormer baseline models.
-- `ExperimentsAndBenchmarks`: Contains standardized fair evaluation suites, baseline evaluators, multi-seed training scripts, and zero-shot cross-domain generalization benchmarks.
-- `PaperFiguresAndVisualization`: Contains visualization scripts, figure rendering pipelines, and the complete LaTeX research paper manuscript.
-- `CodeBaseIndex.md`: Complete directory-by-directory and file-by-file technical index.
+| Directory | Subsystem Domain | Description & Contents |
+| :--- | :--- | :--- |
+| **`VisionAndStabilization/`** | Vision & Telemetry | Video frame normalization, drone telemetry parsing, camera stabilization, BoT-SORT tracking. |
+| **`DatasetPipeline/`** | Data Engineering | 10 Hz windowing, class taxonomy updates, OBB smoothing, VTTC / SCI interaction mining. |
+| **`PhysicsAndBehaviorEngine/`** | Physics & Game Theory | PTFS emerging lane extraction, Social Potential Fields, SAT collision detection, strategic payoff solvers. |
+| **`ModelArchitectures/`** | Deep Learning Models | Complete PyTorch implementations of LaneGameFormer, LaneGCN, and PrayagGameFormer baseline models. |
+| **`ExperimentsAndBenchmarks/`** | Benchmarking & Evaluation | Standardized fair benchmark (479 agents), baseline evaluators, training pipelines, cross-domain tests. |
+| **`PaperFiguresAndVisualization/`** | Visualization & LaTeX | High-resolution publication figure generators, qualitative BEV renderers, complete CoRL LaTeX source. |
+| **`CodeBaseIndex.md`** | Codebase Catalog | Comprehensive file-by-file technical reference describing all 99 files in the repository. |
+
+.
 
 ---
 
@@ -33,7 +96,7 @@ Follow these steps to set up the software environment and dependencies.
 
 ### 1. Prerequisites:
 - Python 3.9 or higher.
-- PyTorch 2.0 or higher with CUDA acceleration support.
+- PyTorch 2.0 or higher with CUDA 11.8+ acceleration support.
 - FFmpeg installed and available in system PATH.
 
 ### 2. Dependency Installation:
@@ -68,26 +131,10 @@ Data/
 ```.
 
 ### Dataset Preprocessing Pipeline:
-1. Normalize drone videos to 30 FPS using `VisionAndStabilization/convert_videos_to_30fps.py`.
-2. Extract camera telemetry and stabilize coordinates using `VisionAndStabilization/stabilize_coordinates.py`.
-3. Downsample and window trajectory sequences to 10 Hz (20 frames history, 30 frames future) using `DatasetPipeline/convert_dataset_10hz.py`.
-4. Mine interaction envelopes and Swarm Complexity Index using `DatasetPipeline/mine_novel_interactions.py`.
-
----
-
-## Model Architecture Details:
-The LaneGameFormer architecture consists of an integrated encoder-decoder pipeline.
-
-### 1. LaneGCN Encoder:
-- **ActorNet**: Processes multi-agent past trajectory sequences using multi-scale 1D dilated convolutions.
-- **MapNet**: Processes emergent traffic flow polylines using spatial graph convolutions.
-- **Cross-Modal Fusion**: Performs multi-scale information sharing across Actor-to-Map (A2M), Map-to-Map (M2M), Map-to-Actor (M2A), and Actor-to-Actor (A2A) fusion layers.
-
-### 2. GameFormer Interactive Decoder:
-- **Level-0 Prior**: Computes kinematic trajectory priors from fused agent and map representations.
-- **Level-1 to Level-L Interaction Decoding**: Iteratively refines multi-agent predictions through game-theoretic cross-attention layers.
-- **Social Potential Attention Bias (SPAB)**: Modulates attention weights based on dynamic pairwise obstacle potentials.
-- **MultiModeGMMPredictor**: Predicts 6 multimodal trajectory modes parametrized as Gaussian Mixture Models with learned mode probabilities.
+1. Normalize drone videos to 30 FPS using `python VisionAndStabilization/convert_videos_to_30fps.py`.
+2. Extract camera telemetry and stabilize coordinates using `python VisionAndStabilization/stabilize_coordinates.py`.
+3. Downsample and window trajectory sequences to 10 Hz (20 frames history, 30 frames future) using `python DatasetPipeline/convert_dataset_10hz.py`.
+4. Mine interaction envelopes and Swarm Complexity Index using `python DatasetPipeline/mine_novel_interactions.py`.
 
 ---
 
@@ -131,7 +178,7 @@ python ExperimentsAndBenchmarks/FairBenchmarkSuite/run_fair_experiments.py \
 ## Experimental Benchmark Results:
 
 ### Standardized Multi-Agent Fair Benchmark (Table 4):
-- **Evaluation Subset**: 479 shared agent-sequence intersection samples evaluated across identical observation-prediction windows.
+- **Evaluation Protocol**: 479 common agent-sequence intersection evaluated across identical observation-prediction windows.
 - **Observation Horizon**: 20 frames (2.0 seconds at 10 Hz).
 - **Prediction Horizon**: 30 frames (3.0 seconds at 10 Hz).
 - **Number of Multimodal Modes ($K$)**: 6 modes.
@@ -190,15 +237,19 @@ python ExperimentsAndBenchmarks/FairBenchmarkSuite/run_fair_experiments.py \
 
 ---
 
-## Generating Figures & Visualizations:
-All figures presented in the research paper can be generated using the scripts in `PaperFiguresAndVisualization`.
+## Publication Figures & Visualizations:
+All publication figures can be reproduced directly using the rendering scripts located in `PaperFiguresAndVisualization`.
 
-### Execution Commands:
-- To generate the system architecture diagram, run `python PaperFiguresAndVisualization/draw_architecture.py`.
-- To generate the ablation study and FlowSPF comparison graphs, run `python PaperFiguresAndVisualization/generate_ablation_graphs.py`.
-- To generate dataset distribution and density figures, run `python PaperFiguresAndVisualization/generate_dataset_paper_figures.py`.
-- To generate microscopic interaction case studies, run `python PaperFiguresAndVisualization/generate_interaction_figures.py`.
-- To generate 10 Hz trajectory stream overlays, run `python PaperFiguresAndVisualization/generate_visualizations_10hz.py`.
+| Script | Rendered Figure | Paper Reference |
+| :--- | :--- | :--- |
+| **`draw_architecture.py`** | System architecture dataflow and module diagram. | `PaperFiguresAndVisualization/LGF_CORLPaper/Img/Architecture.png` |
+| **`generate_ablation_graphs.py`** | Component ablation waterfall chart and FlowSPF comparison plots. | `PaperFiguresAndVisualization/LGF_CORLPaper/Img/ablation_study.png` |
+| **`generate_dataset_paper_figures.py`** | Dataset composition, vehicle density, and class distributions. | `PaperFiguresAndVisualization/LGF_CORLPaper/Img/fig1_dataset_overview.png` |
+| **`generate_interaction_figures.py`** | Pairwise microscopic vehicle interaction case studies. | `PaperFiguresAndVisualization/LGF_CORLPaper/Img/fig6_interaction_case_study.png` |
+| **`generate_new_paper_figures.py`** | Speed-density adaptation curves and VTTC hexbin coupling plots. | `PaperFiguresAndVisualization/LGF_CORLPaper/Img/fig8_vttc_speed_coupling.png` |
+| **`generate_visualizations_10hz.py`** | Qualitative multimodal trajectory rollouts in BEV space. | `PaperFiguresAndVisualization/LGF_CORLPaper/Img/fig11_predictions_output.jpg` |
+
+.
 
 ---
 
