@@ -18,12 +18,12 @@ LaneGameFormer addresses these challenges through a synergistic architecture com
 ---
 
 ## Repository Structure:
-- `visionAndStabilization`: Contains video stabilization, telemetry parsing, coordinate calibration, and BoT-SORT multi-object tracking pipelines.
-- `datasetPipeline`: Contains dataset chunking, frequency resampling to 10 Hz, class taxonomy mapping, and interaction mining routines.
-- `physicsAndBehaviorEngine`: Implements emerging lane discovery, social potential fields, 2D-OBB Separating Axis Theorem (SAT) collision detection, and game-theoretic payoff modeling.
-- `modelArchitectures`: Contains PyTorch implementations of LaneGameFormer, LaneGCN, and PrayagGameFormer baseline models.
-- `experimentsAndBenchmarks`: Contains standardized fair evaluation suites, baseline evaluators, multi-seed training scripts, and zero-shot cross-domain generalization benchmarks.
-- `paperFiguresAndVisualization`: Contains visualization scripts, figure rendering pipelines, and the complete LaTeX research paper manuscript.
+- `VisionAndStabilization`: Contains video stabilization, telemetry parsing, coordinate calibration, and BoT-SORT multi-object tracking pipelines.
+- `DatasetPipeline`: Contains dataset chunking, frequency resampling to 10 Hz, class taxonomy mapping, and interaction mining routines.
+- `PhysicsAndBehaviorEngine`: Implements emerging lane discovery, social potential fields, 2D-OBB Separating Axis Theorem (SAT) collision detection, and game-theoretic payoff modeling.
+- `ModelArchitectures`: Contains PyTorch implementations of LaneGameFormer, LaneGCN, and PrayagGameFormer baseline models.
+- `ExperimentsAndBenchmarks`: Contains standardized fair evaluation suites, baseline evaluators, multi-seed training scripts, and zero-shot cross-domain generalization benchmarks.
+- `PaperFiguresAndVisualization`: Contains visualization scripts, figure rendering pipelines, and the complete LaTeX research paper manuscript.
 - `CodeBaseIndex.md`: Complete directory-by-directory and file-by-file technical index.
 
 ---
@@ -50,28 +50,28 @@ LaneGameFormer utilizes the Project Prayag Bird's-Eye-View (BEV) drone dataset e
 
 ### Dataset Directory Hierarchy:
 ```
-data/
-├── chunkedProjectPrayagBEVDataset10Hz/
-│   ├── train/
-│   │   ├── annotations/
-│   │   └── videos/
-│   ├── val/
-│   │   ├── annotations/
-│   │   └── videos/
-│   ├── test/
-│   │   ├── annotations/
-│   │   └── videos/
+Data/
+├── ChunkedProjectPrayagBEVDataset10Hz/
+│   ├── Train/
+│   │   ├── Annotations/
+│   │   └── Videos/
+│   ├── Val/
+│   │   ├── Annotations/
+│   │   └── Videos/
+│   ├── Test/
+│   │   ├── Annotations/
+│   │   └── Videos/
 │   └── test_chunks.txt
-└── projectPrayagTopDownDataset/
-    ├── cirAerialDroneIndianIntersectionsVideos/
-    └── intermediateFiles/
+└── ProjectPrayagTopDownDataset/
+    ├── CIRAerialDroneIndianIntersectionsVideos/
+    └── IntermediateFiles/
 ```.
 
 ### Dataset Preprocessing Pipeline:
-1. Normalize drone videos to 30 FPS using `visionAndStabilization/convert_videos_to_30fps.py`.
-2. Extract camera telemetry and stabilize coordinates using `visionAndStabilization/stabilize_coordinates.py`.
-3. Downsample and window trajectory sequences to 10 Hz (20 frames history, 30 frames future) using `datasetPipeline/convert_dataset_10hz.py`.
-4. Mine interaction envelopes and Swarm Complexity Index using `datasetPipeline/mine_novel_interactions.py`.
+1. Normalize drone videos to 30 FPS using `VisionAndStabilization/convert_videos_to_30fps.py`.
+2. Extract camera telemetry and stabilize coordinates using `VisionAndStabilization/stabilize_coordinates.py`.
+3. Downsample and window trajectory sequences to 10 Hz (20 frames history, 30 frames future) using `DatasetPipeline/convert_dataset_10hz.py`.
+4. Mine interaction envelopes and Swarm Complexity Index using `DatasetPipeline/mine_novel_interactions.py`.
 
 ---
 
@@ -96,8 +96,8 @@ The LaneGameFormer architecture consists of an integrated encoder-decoder pipeli
 ### 1. Training LaneGameFormer:
 To train LaneGameFormer from scratch on the 10 Hz chunked dataset, run:
 ```bash
-python experimentsAndBenchmarks/training/train.py \
-    --data_dir ../data/chunkedProjectPrayagBEVDataset10Hz \
+python ExperimentsAndBenchmarks/Training/train.py \
+    --data_dir ../Data/ChunkedProjectPrayagBEVDataset10Hz \
     --epochs 60 \
     --batch_size 32 \
     --lr 1e-4 \
@@ -107,22 +107,22 @@ python experimentsAndBenchmarks/training/train.py \
 ### 2. Running the Standardized Fair Benchmark:
 To evaluate all models on the shared 479 agent-sequence intersection benchmark (reproducing Table 4), run:
 ```bash
-python experimentsAndBenchmarks/fairBenchmarkSuite/eval_standardized.py \
-    --data_dir ../data/chunkedProjectPrayagBEVDataset10Hz
+python ExperimentsAndBenchmarks/FairBenchmarkSuite/eval_standardized.py \
+    --data_dir ../Data/ChunkedProjectPrayagBEVDataset10Hz
 ```.
 
 ### 3. Running Deterministic FlowSPF Baselines:
 To evaluate the physics-based FlowSPF variants A, B, C, and D (reproducing Table 11), run:
 ```bash
-python experimentsAndBenchmarks/baselineEvaluators/run_ptfs_spf_gt_eval.py \
-    --data_dir ../data/chunkedProjectPrayagBEVDataset10Hz
+python ExperimentsAndBenchmarks/BaselineEvaluators/run_ptfs_spf_gt_eval.py \
+    --data_dir ../Data/ChunkedProjectPrayagBEVDataset10Hz
 ```.
 
 ### 4. Running Component Ablations:
 To evaluate architectural component ablations (reproducing Table 12), run:
 ```bash
-python experimentsAndBenchmarks/fairBenchmarkSuite/run_fair_experiments.py \
-    --data_dir ../data/chunkedProjectPrayagBEVDataset10Hz \
+python ExperimentsAndBenchmarks/FairBenchmarkSuite/run_fair_experiments.py \
+    --data_dir ../Data/ChunkedProjectPrayagBEVDataset10Hz \
     --eval_ablations
 ```.
 
@@ -191,14 +191,14 @@ python experimentsAndBenchmarks/fairBenchmarkSuite/run_fair_experiments.py \
 ---
 
 ## Generating Figures & Visualizations:
-All figures presented in the research paper can be generated using the scripts in `paperFiguresAndVisualization`.
+All figures presented in the research paper can be generated using the scripts in `PaperFiguresAndVisualization`.
 
 ### Execution Commands:
-- To generate the system architecture diagram, run `python paperFiguresAndVisualization/draw_architecture.py`.
-- To generate the ablation study and FlowSPF comparison graphs, run `python paperFiguresAndVisualization/generate_ablation_graphs.py`.
-- To generate dataset distribution and density figures, run `python paperFiguresAndVisualization/generate_dataset_paper_figures.py`.
-- To generate microscopic interaction case studies, run `python paperFiguresAndVisualization/generate_interaction_figures.py`.
-- To generate 10 Hz trajectory stream overlays, run `python paperFiguresAndVisualization/generate_visualizations_10hz.py`.
+- To generate the system architecture diagram, run `python PaperFiguresAndVisualization/draw_architecture.py`.
+- To generate the ablation study and FlowSPF comparison graphs, run `python PaperFiguresAndVisualization/generate_ablation_graphs.py`.
+- To generate dataset distribution and density figures, run `python PaperFiguresAndVisualization/generate_dataset_paper_figures.py`.
+- To generate microscopic interaction case studies, run `python PaperFiguresAndVisualization/generate_interaction_figures.py`.
+- To generate 10 Hz trajectory stream overlays, run `python PaperFiguresAndVisualization/generate_visualizations_10hz.py`.
 
 ---
 

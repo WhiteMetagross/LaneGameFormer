@@ -9,34 +9,34 @@ The codebase integrates computer vision, trajectory stabilization, physics and p
 
 ## Directory Tree Overview:
 ```
-code/
-├── visionAndStabilization/
-├── datasetPipeline/
-├── physicsAndBehaviorEngine/
-├── modelArchitectures/
-│   ├── laneGameFormer/
-│   ├── laneGcn/
-│   └── gameFormer/
-│       └── prayagGameFormer/
-│           ├── checkpoints/
-│           │   └── mapCache/
-│           ├── data/
-│           ├── model/
-│           └── utils/
-├── experimentsAndBenchmarks/
-│   ├── baselineEvaluators/
-│   ├── fairBenchmarkSuite/
-│   ├── training/
-│   └── zeroShotCrossDomain/
-└── paperFiguresAndVisualization/
-    └── lgfCorlPaper/
-        └── img/
+Code/
+├── VisionAndStabilization/
+├── DatasetPipeline/
+├── PhysicsAndBehaviorEngine/
+├── ModelArchitectures/
+│   ├── LaneGameFormer/
+│   ├── LaneGCN/
+│   └── GameFormer/
+│       └── PrayagGameFormer/
+│           ├── Checkpoints/
+│           │   └── MapCache/
+│           ├── Data/
+│           ├── Model/
+│           └── Utils/
+├── ExperimentsAndBenchmarks/
+│   ├── BaselineEvaluators/
+│   ├── FairBenchmarkSuite/
+│   ├── Training/
+│   └── ZeroShotCrossDomain/
+└── PaperFiguresAndVisualization/
+    └── LGF_CORLPaper/
+        └── Img/
 ```.
 
 ---
 
-## 1. visionAndStabilization Directory:
-The `visionAndStabilization` directory contains scripts and configurations for raw drone video processing, camera telemetry extraction, homography-based coordinate stabilization, and multi-object tracking.
+## 1. VisionAndStabilization Directory:
+The `VisionAndStabilization` directory contains scripts and configurations for raw drone video processing, camera telemetry extraction, homography-based coordinate stabilization, and multi-object tracking.
 
 ### botsort.py:
 - Implements the BoT-SORT multi-object tracking algorithm adapted for high-altitude drone aerial footage.
@@ -85,8 +85,8 @@ The `visionAndStabilization` directory contains scripts and configurations for r
 
 ---
 
-## 2. datasetPipeline Directory:
-The `datasetPipeline` directory handles dataset generation, chunking, filtering, coordinate transformation, traffic entity taxonomy mapping, and microscopic interaction mining.
+## 2. DatasetPipeline Directory:
+The `DatasetPipeline` directory handles dataset generation, chunking, filtering, coordinate transformation, traffic entity taxonomy mapping, and microscopic interaction mining.
 
 ### calculate_class_sizes.py:
 - Computes geometric bounding box dimension statistics across all annotated entities.
@@ -150,8 +150,8 @@ The `datasetPipeline` directory handles dataset generation, chunking, filtering,
 
 ---
 
-## 3. physicsAndBehaviorEngine Directory:
-The `physicsAndBehaviorEngine` directory implements physics models, emerging lane extraction, potential fields, and game-theoretic behavior rules.
+## 3. PhysicsAndBehaviorEngine Directory:
+The `PhysicsAndBehaviorEngine` directory implements physics models, emerging lane extraction, potential fields, and game-theoretic behavior rules.
 
 ### emerging_lane_extractor.py:
 - Discovers virtual lane topology directly from unstructured multi-agent trajectory clusters without static HD maps.
@@ -190,10 +190,10 @@ The `physicsAndBehaviorEngine` directory implements physics models, emerging lan
 
 ---
 
-## 4. modelArchitectures Directory:
-The `modelArchitectures` directory contains the neural network implementations for LaneGameFormer, LaneGCN, and GameFormer.
+## 4. ModelArchitectures Directory:
+The `ModelArchitectures` directory contains the neural network implementations for LaneGameFormer, LaneGCN, and GameFormer.
 
-### 4.1 laneGameFormer:
+### 4.1 LaneGameFormer:
 #### lane_game_former.py:
 - Top-level PyTorch module for the complete LaneGameFormer (LGF) motion forecasting architecture.
 - Integrates the LaneGCN graph convolution encoder with the multi-level GameFormer interaction decoder.
@@ -215,7 +215,7 @@ The `modelArchitectures` directory contains the neural network implementations f
 - Implements multi-layer perceptron (MLP) submodules, residual projections, and layer normalization layers.
 - Supports flexible dimension projections across encoder and decoder representations.
 
-### 4.2 laneGcn:
+### 4.2 LaneGCN:
 #### lanegcn.py:
 - Standalone PyTorch implementation of the LaneGCN baseline architecture.
 - Encodes agent trajectories and vectorized lane polylines via multi-scale graph convolutions.
@@ -236,68 +236,68 @@ The `modelArchitectures` directory contains the neural network implementations f
 - Formulates multi-scale feature aggregation across spatial neighbor nodes.
 - Provides non-linear activation and normalization layers.
 
-### 4.3 gameFormer (prayagGameFormer):
-#### prayagGameFormer/model/gameformer.py:
+### 4.3 GameFormer (PrayagGameFormer):
+#### PrayagGameFormer/Model/gameformer.py:
 - Implementation of the GameFormer baseline architecture adapted for unstructured BEV drone datasets.
 - Implements hierarchical level-$k$ interactive decoding over agent and map queries.
 - Predicts multimodal trajectory distributions with level-wise trajectory refinement.
 
-#### prayagGameFormer/model/modules.py:
+#### PrayagGameFormer/Model/modules.py:
 - Contains cross-attention and self-attention interaction layers for GameFormer decoders.
 - Formulates iterative query updating across sequential reasoning levels.
 - Implements multi-agent attention masks and spatial relative position encodings.
 
-#### prayagGameFormer/data/dataset.py:
+#### PrayagGameFormer/Data/dataset.py:
 - PyTorch Dataset class for loading chunked trajectory files for GameFormer.
 - Performs agent coordinate canonicalization, past trajectory normalization, and future ground truth extraction.
 - Generates batch tensors for training, validation, and evaluation loops.
 
-#### prayagGameFormer/data/mapEncoder.py:
+#### PrayagGameFormer/Data/mapEncoder.py:
 - Encodes road geometry and vectorized map elements into spatial feature embeddings.
 - Provides raster and vector processing for static environmental context.
 - Interacts with attention query modules in the GameFormer decoder.
 
-#### prayagGameFormer/utils/helpers.py:
+#### PrayagGameFormer/Utils/helpers.py:
 - Geometry helper routines including rotation matrices, box intersections, and coordinate transforms.
 - Implements trajectory smoothing, heading angle calculation, and Frenet frame projections.
 - Formulates bounding box overlap and distance calculations.
 
-#### prayagGameFormer/utils/metrics.py:
+#### PrayagGameFormer/Utils/metrics.py:
 - Implements standardized motion forecasting metrics including ADE, FDE, Miss Rate, and Collision Rate.
 - Computes minimum displacement error across top-$K$ multimodal trajectory predictions.
 - Implements collision detection between predicted agent bounding boxes.
 
-#### prayagGameFormer/utils/training_utils.py:
+#### PrayagGameFormer/Utils/training_utils.py:
 - Training utility functions including AdamW optimization routines, Cosine Annealing learning rate schedulers, and gradient clipping.
 - Manages model checkpoint saving, resume loading, and validation loss tracking.
 - Logs training metrics to TensorBoard.
 
-#### prayagGameFormer/config.py:
+#### PrayagGameFormer/config.py:
 - Centralized configuration file specifying model hyperparameters, batch sizes, learning rates, and dataset paths.
 - Configures observation lengths, prediction horizons, and number of multimodal modes.
 - Manages device placement and distributed training flags.
 
-#### prayagGameFormer/train.py:
+#### PrayagGameFormer/train.py:
 - Dedicated training script for training PrayagGameFormer on chunked trajectory datasets.
 - Executes full training and validation loops with metric evaluation after each epoch.
 - Exports best-performing model weights based on validation displacement error.
 
-#### prayagGameFormer/tune.py:
+#### PrayagGameFormer/tune.py:
 - Automated hyperparameter optimization pipeline using the Optuna framework.
 - Explores learning rate, hidden dimension, dropout, and loss weighting search spaces.
 - Identifies optimal hyperparameter configurations for competitive benchmarking.
 
-#### prayagGameFormer/evaluate.py:
+#### PrayagGameFormer/evaluate.py:
 - Standalone evaluation script evaluating trained GameFormer checkpoints against test sets.
 - Computes minADE, minFDE, Miss Rate, and Collision Rate metrics.
 - Outputs detailed evaluation reports and metric breakdown summaries.
 
 ---
 
-## 5. experimentsAndBenchmarks Directory:
-The `experimentsAndBenchmarks` directory contains evaluation harnesses, fair benchmarking suites, baseline evaluators, training pipelines, and zero-shot cross-domain testing scripts.
+## 5. ExperimentsAndBenchmarks Directory:
+The `ExperimentsAndBenchmarks` directory contains evaluation harnesses, fair benchmarking suites, baseline evaluators, training pipelines, and zero-shot cross-domain testing scripts.
 
-### 5.1 baselineEvaluators:
+### 5.1 BaselineEvaluators:
 #### eval_cv_baseline.py:
 - Evaluates the Constant Velocity (CV) kinematic baseline across all benchmark partitions.
 - Extrapolates future positions linearly using the last observed velocity vector.
@@ -323,7 +323,7 @@ The `experimentsAndBenchmarks` directory contains evaluation harnesses, fair ben
 - Quantifies displacement error, collision rate, and off-road violation rates for each physics formulation.
 - Validates the empirical necessity of acceleration-aware CPA VTTC and dynamic Swarm Complexity Index scaling.
 
-### 5.2 fairBenchmarkSuite:
+### 5.2 FairBenchmarkSuite:
 #### eval_standardized.py:
 - Implements the standardized fair evaluation protocol on the shared 479 agent-sequence intersection set.
 - Enforces identical 20-frame observation and 30-frame prediction horizons across all competing models.
@@ -349,7 +349,7 @@ The `experimentsAndBenchmarks` directory contains evaluation harnesses, fair ben
 - Coordinates multi-seed training across master seeds to compute mean and standard deviation performance.
 - Executes full architectural ablation experiments across all subcomponent variations.
 
-### 5.3 training:
+### 5.3 Training:
 #### train.py:
 - Main training script for LaneGameFormer supporting multi-GPU execution and mixed-precision training.
 - Implements customized training loops with dynamic loss scheduling and validation monitoring.
@@ -365,7 +365,7 @@ The `experimentsAndBenchmarks` directory contains evaluation harnesses, fair ben
 - Provides reproducible random seed initialization across PyTorch, NumPy, and CUDA environments.
 - Manages logging hooks and checkpoint serialization formats.
 
-### 5.4 zeroShotCrossDomain:
+### 5.4 ZeroShotCrossDomain:
 #### compare_models.py:
 - Compares cross-scene generalization performance across LaneGameFormer, LaneGCN, and GameFormer.
 - Analyzes prediction degradation when models trained on specific intersection scenes are evaluated on unseen topologies.
@@ -383,8 +383,8 @@ The `experimentsAndBenchmarks` directory contains evaluation harnesses, fair ben
 
 ---
 
-## 6. paperFiguresAndVisualization Directory:
-The `paperFiguresAndVisualization` directory contains visualization tools, figure generators, rendering scripts, and the complete LaTeX paper manuscript.
+## 6. PaperFiguresAndVisualization Directory:
+The `PaperFiguresAndVisualization` directory contains visualization tools, figure generators, rendering scripts, and the complete LaTeX paper manuscript.
 
 ### draw_architecture.py:
 - Generates high-resolution schematic diagrams illustrating the LaneGameFormer system architecture.
@@ -426,7 +426,7 @@ The `paperFiguresAndVisualization` directory contains visualization tools, figur
 - Draws Oriented Bounding Boxes, multi-mode trajectory ribbons, uncertainty ellipses, and road masks.
 - Manages color maps, font sizing, and layout formatting for paper figures.
 
-### lgfCorlPaper Subdirectory:
+### LGF_CORLPaper Subdirectory:
 #### paper.tex:
 - Complete LaTeX source manuscript for the conference research paper.
 - Contains the formal mathematical formulations, architectural descriptions, experimental tables, and qualitative analyses.
@@ -445,6 +445,6 @@ The `paperFiguresAndVisualization` directory contains visualization tools, figur
 - Bibliography formatting style file implementing abbreviated author-year citation formatting.
 - Manages reference section numbering, sorting, and inline citation appearance.
 
-#### img Subdirectory:
+#### Img Subdirectory:
 - Contains all high-resolution diagram assets, experimental graphs, and qualitative visualization figures referenced in the paper manuscript.
 - Includes `Architecture.png`, `fig1_dataset_overview.png`, `fig2_traffic_density.png`, `fig3_entity_classes.png`, `fig4_annotation_statistics.png`, `fig5_spatial_patterns.png`, `fig6_interaction_case_study.png`, `fig7_speed_density_adaptation.png`, `fig8_vttc_speed_coupling.png`, `fig9_trajectory_flow_road_mask.png`, `fig10_flow_potential_surface.jpg`, `fig11_predictions_output.jpg`, `flow_spf_comparison.png`, and `ablation_study.png`.
