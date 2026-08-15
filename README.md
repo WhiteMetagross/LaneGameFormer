@@ -20,7 +20,7 @@ LaneGameFormer addresses these challenges through a synergistic architecture com
 - Trajectories are smoothed via Savitzky-Golay filtering and clustered using Hausdorff distance metrics (d_H <= 3.05 m).
 - Continuous flow potential is formulated as:
 
-```math
+```
 P(x) = Σ [ C_m · exp(-dist(x, l_m)² / (2 · σ²)) ]
 
 where:
@@ -32,7 +32,7 @@ where:
 ### 2. Vector Time-to-Collision (VTTC) & Swarm Complexity Index (SCI):
 - Solves the exact cubic polynomial for the time of Closest Point of Approach (CPA) τ under relative acceleration r(t) = Δp + Δv·t + 0.5·Δa·t²:
 
-```math
+```
 ||Δa||² · τ³ + 3(Δv · Δa) · τ² + 2(||Δv||² + Δp · Δa) · τ + 2(Δp · Δv) = 0
 
 where:
@@ -45,7 +45,7 @@ where:
 
 - Evaluates the dynamic Swarm Complexity Index (SCI) weighted by entity vulnerability classes (w_HPE = 2.5, w_SVE = 1.8, w_LVE = 1.0):
 
-```math
+```
 SCI_i(t) = Σ [ w_j / OB_VTC_ij(t) ]  for all j in N_i where Δp · Δv < 0
 ```
 
@@ -64,7 +64,7 @@ SCI_i(t) = Σ [ w_j / OB_VTC_ij(t) ]  for all j in N_i where Δp · Δv < 0
 ### 6. Dynamic Behavior-Aware Social Potential (BASP) Loss:
 - Imposes an adaptive safety clearance margin d_margin conditioned on real-time VTTC and swarm complexity:
 
-```math
+```
 d_margin = d_0 · [ 1.0 + max(0, 1.5 - VTTC_ij) · 0.4 - min(SCI_ij, 5.0) · 0.05 · (min(VTTC_ij, 3.0) / 3.0) ]
 
 clamped to the physical safety range [0.8 m, 3.5 m].
